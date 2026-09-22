@@ -16,70 +16,86 @@ public class PushTokenController {
     private final PushTokenRepository
         pushTokenRepository;
 
+    private final AppUserService
+        appUserService;
+
     public PushTokenController(
-        PushTokenRepository pushTokenRepository
+        PushTokenRepository pushTokenRepository,
+        AppUserService appUserService
     ) {
         this.pushTokenRepository =
             pushTokenRepository;
+
+        this.appUserService =
+            appUserService;
     }
 
     @PostMapping
-    public Map<String, Object>
-        registerPushToken(
-            @RequestBody
-            Map<String, String> request
-        ) {
-
+    public PushToken registerPushToken(
+        @RequestBody Map<String, String> body
+    ) {
         String token =
-            request.get("token");
+            body.get("token");
 
         String platform =
-            request.getOrDefault(
-                "platform",
-                "unknown"
-            );
+            body.get("platform");
+
+        String installationId =
+            body.get("installationId");
 
         if (
             token == null ||
             token.isBlank()
         ) {
             throw new IllegalArgumentException(
-                "Push token is required"
+                "token is required"
             );
         }
+
+        if (
+            installationId == null ||
+            installationId.isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                "installationId is required"
+            );
+        }
+
+        AppUser user =
+            appUserService.getOrCreateUser(
+                installationId
+            );
 
         PushToken pushToken =
             pushTokenRepository
                 .findByExpoPushToken(token)
-                .orElse(
-                    new PushToken(
-                        token,
-                        platform
-                    )
-                );
+                .orElseGet(PushToken::new);
+
+        pushToken.setExpoPushToken(
+            token
+        );
 
         pushToken.setPlatform(
-            platform
+            platform == null
+                ? "ios"
+                : platform
+        );
+
+        pushToken.setAppUser(
+            user
         );
 
         pushToken.setUpdatedAt(
             LocalDateTime.now()
         );
 
-        pushTokenRepository.save(
+        return pushTokenRepository.save(
             pushToken
-        );
-
-        return Map.of(
-            "saved",
-            true
         );
     }
 
     @GetMapping("/count")
-    public Map<String, Long>
-        getTokenCount() {
-
+    public Map<String, Long> getCount() {
         return Map.of(
             "count",
             pushTokenRepository.count()

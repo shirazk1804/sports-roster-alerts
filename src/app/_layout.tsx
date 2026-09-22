@@ -38,7 +38,8 @@ export default function RootLayout() {
           await getExpoPushToken();
 
         await registerPushToken(
-          pushToken
+          pushToken,
+          installationId
         );
 
         console.log(

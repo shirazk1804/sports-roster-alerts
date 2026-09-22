@@ -219,7 +219,8 @@ export async function getRosterEvents():
 }
 
 export async function registerPushToken(
-  token: string
+  token: string,
+  installationId: string
 ): Promise<void> {
 
   const response = await fetch(
@@ -235,6 +236,7 @@ export async function registerPushToken(
       body: JSON.stringify({
         token,
         platform: "ios",
+        installationId,
       }),
     }
   );
