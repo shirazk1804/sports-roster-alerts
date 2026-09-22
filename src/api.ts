@@ -224,8 +224,13 @@ export async function saveAlertPreferences(
 export async function getRosterEvents():
   Promise<RosterEvent[]> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/events`
+    `${API_URL}/api/events?installationId=${encodeURIComponent(
+      installationId
+    )}`
   );
 
   if (!response.ok) {

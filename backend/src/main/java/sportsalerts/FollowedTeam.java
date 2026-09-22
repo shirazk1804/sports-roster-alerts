@@ -39,7 +39,7 @@ public class FollowedTeam {
 
     private String alertType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(
         name = "app_user_id"
     )

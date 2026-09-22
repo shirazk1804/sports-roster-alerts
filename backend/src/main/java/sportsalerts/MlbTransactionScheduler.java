@@ -2,6 +2,8 @@ package sportsalerts;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -58,16 +60,45 @@ public class MlbTransactionScheduler {
                 .findAll()
                 .stream()
                 .filter(
-                    team ->
+                    followedTeam ->
                         "MLB".equals(
-                            team.getLeague()
+                            followedTeam.getLeague()
                         )
+                        &&
+                        followedTeam.getAppUser()
+                            != null
                 )
                 .toList();
 
         if (followedMlbTeams.isEmpty()) {
             return;
         }
+
+        /*
+         * Group users by team.
+         *
+         * Example:
+         *
+         * Dodgers
+         *   User 1
+         *   User 2
+         *
+         * Yankees
+         *   User 3
+         *
+         * This lets us process each MLB team once
+         * while still notifying every user who
+         * follows that team.
+         */
+        Map<String, List<FollowedTeam>>
+            followersByTeam =
+                followedMlbTeams
+                    .stream()
+                    .collect(
+                        Collectors.groupingBy(
+                            FollowedTeam::getName
+                        )
+                    );
 
         LocalDate today =
             LocalDate.now();
@@ -83,6 +114,7 @@ public class MlbTransactionScheduler {
                     );
 
         } catch (Exception exception) {
+
             System.err.println(
                 "MLB live transaction request failed: "
                 + exception.getMessage()
@@ -95,14 +127,23 @@ public class MlbTransactionScheduler {
         int totalNotifications = 0;
 
         for (
-            FollowedTeam followedTeam :
-            followedMlbTeams
+            Map.Entry<
+                String,
+                List<FollowedTeam>
+            > entry :
+            followersByTeam.entrySet()
         ) {
+            String teamName =
+                entry.getKey();
+
+            List<FollowedTeam> followers =
+                entry.getValue();
+
             Team team =
                 teamRepository
                     .findByLeagueAndName(
                         "MLB",
-                        followedTeam.getName()
+                        teamName
                     )
                     .orElse(null);
 
@@ -112,7 +153,7 @@ public class MlbTransactionScheduler {
             ) {
                 System.err.println(
                     "No MLB team ID found for: "
-                    + followedTeam.getName()
+                    + teamName
                 );
 
                 continue;
@@ -126,6 +167,12 @@ public class MlbTransactionScheduler {
                             team.getExternalTeamId()
                         );
 
+                /*
+                 * Save each MLB event only once.
+                 *
+                 * roster_events is global event data,
+                 * not one copy per user.
+                 */
                 List<RosterEvent> savedEvents =
                     rosterEventService
                         .saveMlbEvents(
@@ -136,39 +183,65 @@ public class MlbTransactionScheduler {
                 totalNewEvents +=
                     savedEvents.size();
 
+                /*
+                 * Now distribute each newly saved event
+                 * to every user following this team.
+                 */
                 for (
                     RosterEvent event :
                     savedEvents
                 ) {
-                    if (
-                        rosterEventService
-                            .shouldNotify(
-                                followedTeam,
-                                event
-                            )
+                    for (
+                        FollowedTeam followedTeam :
+                        followers
                     ) {
-                        pushNotificationService
-                            .sendRosterEventNotification(
-                                event
-                            );
+                        AppUser user =
+                            followedTeam.getAppUser();
 
-                        totalNotifications++;
+                        if (user == null) {
+                            continue;
+                        }
+
+                        boolean shouldNotify =
+                            rosterEventService
+                                .shouldNotify(
+                                    followedTeam,
+                                    event
+                                );
+
+                        if (!shouldNotify) {
+                            continue;
+                        }
+
+                        int sent =
+                            pushNotificationService
+                                .sendRosterEventNotification(
+                                    user.getId(),
+                                    event
+                                );
+
+                        totalNotifications +=
+                            sent;
                     }
                 }
 
                 if (!savedEvents.isEmpty()) {
+
                     System.out.println(
                         "MLB live check: "
-                        + followedTeam.getName()
+                        + teamName
                         + " - New events: "
                         + savedEvents.size()
+                        + " - Followers: "
+                        + followers.size()
                     );
                 }
 
             } catch (Exception exception) {
+
                 System.err.println(
                     "MLB processing failed for "
-                    + followedTeam.getName()
+                    + teamName
                     + ": "
                     + exception.getMessage()
                 );

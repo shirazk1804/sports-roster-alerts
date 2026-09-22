@@ -44,11 +44,16 @@ public class PushNotificationService {
             );
     }
 
-    public void sendRosterEventNotification(
+    public int sendRosterEventNotification(
+        Long appUserId,
         RosterEvent event
     ) {
         List<PushToken> pushTokens =
-            pushTokenRepository.findAll();
+            pushTokenRepository.findByAppUserId(
+                appUserId
+            );
+
+        int notificationsSent = 0;
 
         for (PushToken pushToken : pushTokens) {
 
@@ -114,10 +119,15 @@ public class PushNotificationService {
                         .retrieve()
                         .body(String.class);
 
-                handlePushTicket(
-                    response,
-                    pushToken
-                );
+                boolean accepted =
+                    handlePushTicket(
+                        response,
+                        pushToken
+                    );
+
+                if (accepted) {
+                    notificationsSent++;
+                }
 
             } catch (Exception exception) {
 
@@ -127,9 +137,11 @@ public class PushNotificationService {
                 );
             }
         }
+
+        return notificationsSent;
     }
 
-    private void handlePushTicket(
+    private boolean handlePushTicket(
         String response,
         PushToken pushToken
     ) throws Exception {
@@ -141,11 +153,12 @@ public class PushNotificationService {
             root.get("data");
 
         if (data == null) {
+
             System.err.println(
                 "Expo push response did not contain a ticket."
             );
 
-            return;
+            return false;
         }
 
         JsonNode ticket;
@@ -153,7 +166,7 @@ public class PushNotificationService {
         if (data.isArray()) {
 
             if (data.size() == 0) {
-                return;
+                return false;
             }
 
             ticket =
@@ -193,7 +206,7 @@ public class PushNotificationService {
                 );
             }
 
-            return;
+            return true;
         }
 
         if ("error".equals(status)) {
@@ -219,6 +232,8 @@ public class PushNotificationService {
                 );
             }
         }
+
+        return false;
     }
 
     private String getNestedError(
