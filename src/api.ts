@@ -17,6 +17,7 @@ export type AppUser = {
   id: number;
   installationId: string;
   createdAt: string;
+  authToken: string | null;
 };
 
 export type FollowedTeam = {

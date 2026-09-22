@@ -16,6 +16,9 @@ import jakarta.persistence.UniqueConstraint;
     uniqueConstraints = {
         @UniqueConstraint(
             columnNames = "installation_id"
+        ),
+        @UniqueConstraint(
+            columnNames = "auth_token_hash"
         )
     }
 )
@@ -34,6 +37,13 @@ public class AppUser {
         length = 100
     )
     private String installationId;
+
+    @Column(
+        name = "auth_token_hash",
+        unique = true,
+        length = 64
+    )
+    private String authTokenHash;
 
     @Column(
         name = "created_at",
@@ -60,6 +70,17 @@ public class AppUser {
 
     public String getInstallationId() {
         return installationId;
+    }
+
+    public String getAuthTokenHash() {
+        return authTokenHash;
+    }
+
+    public void setAuthTokenHash(
+        String authTokenHash
+    ) {
+        this.authTokenHash =
+            authTokenHash;
     }
 
     public LocalDateTime getCreatedAt() {

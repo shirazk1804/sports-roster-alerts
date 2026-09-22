@@ -1,5 +1,6 @@
 package sportsalerts;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,16 +12,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users")
 public class AppUserController {
 
-    private final AppUserService appUserService;
+    public record RegistrationResponse(
+        Long id,
+        String installationId,
+        LocalDateTime createdAt,
+        String authToken
+    ) {
+    }
+
+    private final AppUserService
+        appUserService;
 
     public AppUserController(
         AppUserService appUserService
     ) {
-        this.appUserService = appUserService;
+        this.appUserService =
+            appUserService;
     }
 
     @PostMapping("/register")
-    public AppUser registerUser(
+    public RegistrationResponse registerUser(
         @RequestBody Map<String, String> body
     ) {
         String installationId =
@@ -35,8 +46,19 @@ public class AppUserController {
             );
         }
 
-        return appUserService.getOrCreateUser(
-            installationId
+        AppUserService.RegistrationResult result =
+            appUserService.registerInstallation(
+                installationId
+            );
+
+        AppUser user =
+            result.user();
+
+        return new RegistrationResponse(
+            user.getId(),
+            user.getInstallationId(),
+            user.getCreatedAt(),
+            result.authToken()
         );
     }
 }

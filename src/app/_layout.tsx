@@ -11,7 +11,9 @@ import {
 } from "../notifications";
 
 import {
+  getAuthToken,
   getInstallationId,
+  saveAuthToken,
 } from "../installation";
 
 export default function RootLayout() {
@@ -24,6 +26,9 @@ export default function RootLayout() {
         const installationId =
           await getInstallationId();
 
+        let authToken =
+          await getAuthToken();
+
         const user =
           await registerInstallation(
             installationId
@@ -33,6 +38,28 @@ export default function RootLayout() {
           "Installation registered. User ID:",
           user.id
         );
+
+        /*
+         * During the authentication migration,
+         * User 1 will receive an auth token the
+         * first time the new backend sees this
+         * installation.
+         */
+        if (
+          !authToken &&
+          user.authToken
+        ) {
+          await saveAuthToken(
+            user.authToken
+          );
+
+          authToken =
+            user.authToken;
+
+          console.log(
+            "Authentication token saved securely."
+          );
+        }
 
         const pushToken =
           await getExpoPushToken();

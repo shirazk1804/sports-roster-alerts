@@ -11,4 +11,9 @@ public interface AppUserRepository
         findByInstallationId(
             String installationId
         );
+
+    Optional<AppUser>
+        findByAuthTokenHash(
+            String authTokenHash
+        );
 }
