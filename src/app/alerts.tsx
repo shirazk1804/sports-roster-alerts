@@ -23,6 +23,44 @@ import {
   RosterEvent,
 } from "../api";
 
+function formatDetectedTime(
+  createdAt: string
+): string {
+
+  const utcDate =
+    new Date(
+      createdAt.endsWith("Z")
+        ? createdAt
+        : `${createdAt}Z`
+    );
+
+  return utcDate.toLocaleTimeString(
+    undefined,
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
+}
+
+function formatEventDate(
+  eventDate: string
+): string {
+  const [year, month, day] =
+    eventDate.split("-").map(Number);
+
+  const date =
+    new Date(year, month - 1, day);
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month: "short",
+      day: "numeric",
+    }
+  );
+}
+
 const eventLabels:
   Record<string, string> = {
 
@@ -55,51 +93,51 @@ const eventLabels:
 
   REHAB_ASSIGNMENT:
     "Rehab Assignment",
-  
+
   BEREAVEMENT_PLACEMENT:
-  "Placed on Bereavement List",
+    "Placed on Bereavement List",
 
-BEREAVEMENT_ACTIVATION:
-  "Activated from Bereavement List",
+  BEREAVEMENT_ACTIVATION:
+    "Activated from Bereavement List",
 
-PATERNITY_PLACEMENT:
-  "Placed on Paternity List",
+  PATERNITY_PLACEMENT:
+    "Placed on Paternity List",
 
-PATERNITY_ACTIVATION:
-  "Activated from Paternity List",
+  PATERNITY_ACTIVATION:
+    "Activated from Paternity List",
 
-RESTRICTED_LIST_PLACEMENT:
-  "Placed on Restricted List",
+  RESTRICTED_LIST_PLACEMENT:
+    "Placed on Restricted List",
 
-RESTRICTED_LIST_ACTIVATION:
-  "Activated from Restricted List",
+  RESTRICTED_LIST_ACTIVATION:
+    "Activated from Restricted List",
 
-SUSPENDED:
-  "Suspended",
+  SUSPENDED:
+    "Suspended",
 
-SUSPENSION_REINSTATED:
-  "Reinstated from Suspension",
+  SUSPENSION_REINSTATED:
+    "Reinstated from Suspension",
 
-WAIVER_CLAIM:
-  "Claimed Off Waivers",
+  WAIVER_CLAIM:
+    "Claimed Off Waivers",
 
-WAIVERS:
-  "Placed on Waivers",
+  WAIVERS:
+    "Placed on Waivers",
 
-RELEASED:
-  "Released",
+  RELEASED:
+    "Released",
 
-SIGNED:
-  "Signed",
+  SIGNED:
+    "Signed",
 
-MINOR_LEAGUE_SIGNING:
-  "Minor League Signing",
+  MINOR_LEAGUE_SIGNING:
+    "Minor League Signing",
 
-RETIRED:
-  "Retired",
+  RETIRED:
+    "Retired",
 
-ROSTER_ACTIVATION:
-  "Activated",
+  ROSTER_ACTIVATION:
+    "Activated",
 };
 
 export default function AlertsScreen() {
@@ -247,12 +285,10 @@ export default function AlertsScreen() {
                   {event.teamName}
                 </Text>
 
-                <Text
-                  style={styles.date}
-                >
-                  {formatDate(
-                    event.eventDate
-                  )}
+                <Text>
+                  {formatEventDate(event.eventDate)}
+                  {" · "}
+                  {formatDetectedTime(event.createdAt)}
                 </Text>
               </View>
             </View>

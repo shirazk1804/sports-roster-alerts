@@ -12,20 +12,13 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(
-    name = "roster_events",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            columnNames = "dedupe_key"
-        )
-    }
-)
+@Table(name = "roster_events", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "dedupe_key")
+})
 public class RosterEvent {
 
     @Id
-    @GeneratedValue(
-        strategy = GenerationType.IDENTITY
-    )
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String league;
@@ -51,16 +44,10 @@ public class RosterEvent {
     @Column(name = "event_date")
     private LocalDate eventDate;
 
-    @Column(
-        columnDefinition = "TEXT"
-    )
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(
-        name = "dedupe_key",
-        nullable = false,
-        length = 64
-    )
+    @Column(name = "dedupe_key", nullable = false, length = 64)
     private String dedupeKey;
 
     @Column(name = "created_at")
@@ -70,31 +57,28 @@ public class RosterEvent {
     }
 
     public RosterEvent(
-        String league,
-        Long externalTeamId,
-        String teamName,
-        Long sourceTransactionId,
-        Long playerId,
-        String playerName,
-        String eventType,
-        LocalDate eventDate,
-        String description,
-        String dedupeKey
-    ) {
+            String league,
+            Long externalTeamId,
+            String teamName,
+            Long sourceTransactionId,
+            Long playerId,
+            String playerName,
+            String eventType,
+            LocalDate eventDate,
+            String description,
+            String dedupeKey) {
         this.league = league;
-        this.externalTeamId =
-            externalTeamId;
+        this.externalTeamId = externalTeamId;
         this.teamName = teamName;
-        this.sourceTransactionId =
-            sourceTransactionId;
+        this.sourceTransactionId = sourceTransactionId;
         this.playerId = playerId;
         this.playerName = playerName;
         this.eventType = eventType;
         this.eventDate = eventDate;
         this.description = description;
         this.dedupeKey = dedupeKey;
-        this.createdAt =
-            LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(
+                java.time.ZoneOffset.UTC);
     }
 
     public Long getId() {
