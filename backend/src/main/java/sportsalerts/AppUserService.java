@@ -6,7 +6,9 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AppUserService {
@@ -58,12 +60,6 @@ public class AppUserService {
                 installationId
             );
 
-        /*
-         * Existing users created before authentication
-         * was added will not have a token hash yet.
-         *
-         * Issue their first token exactly once.
-         */
         if (
             user.getAuthTokenHash() == null ||
             user.getAuthTokenHash().isBlank()
@@ -90,11 +86,6 @@ public class AppUserService {
             );
         }
 
-        /*
-         * Never regenerate or expose an existing
-         * user's token simply because somebody
-         * knows the installation ID.
-         */
         return new RegistrationResult(
             user,
             null
@@ -122,6 +113,32 @@ public class AppUserService {
             .findByAuthTokenHash(
                 authTokenHash
             );
+    }
+
+    public AppUser requireAuthenticatedUser(
+        String authorizationHeader
+    ) {
+        String authToken =
+            extractBearerToken(
+                authorizationHeader
+            );
+
+        if (authToken == null) {
+            throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Authentication required"
+            );
+        }
+
+        return authenticateToken(
+            authToken
+        ).orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid authentication token"
+                )
+        );
     }
 
     public String extractBearerToken(

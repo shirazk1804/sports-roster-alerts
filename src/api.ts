@@ -1,9 +1,32 @@
 import {
-  getInstallationId,
+  getAuthToken
 } from "./installation";
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL;
+
+async function getAuthHeaders() {
+  const authToken =
+    await getAuthToken();
+
+  if (!authToken) {
+    throw new Error(
+      "Authentication token is missing"
+    );
+  }
+
+  return {
+    Authorization:
+      `Bearer ${authToken}`,
+  };
+}
+
+async function getJsonAuthHeaders() {
+  return {
+    ...(await getAuthHeaders()),
+    "Content-Type": "application/json",
+  };
+}
 
 export type ApiTeam = {
   id: number;
@@ -92,13 +115,12 @@ export async function getTeams():
 export async function getFollowedTeams():
   Promise<FollowedTeam[]> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/followed-teams?installationId=${encodeURIComponent(
-      installationId
-    )}`
+    `${API_URL}/api/followed-teams`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
   );
 
   if (!response.ok) {
@@ -115,20 +137,13 @@ export async function followTeam(
   name: string
 ): Promise<FollowedTeam> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/followed-teams?installationId=${encodeURIComponent(
-      installationId
-    )}`,
+    `${API_URL}/api/followed-teams`,
     {
       method: "POST",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
+      headers:
+        await getJsonAuthHeaders(),
 
       body: JSON.stringify({
         league,
@@ -156,15 +171,12 @@ export async function deleteFollowedTeam(
   id: number
 ): Promise<void> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${id}?installationId=${encodeURIComponent(
-      installationId
-    )}`,
+    `${API_URL}/api/followed-teams/${id}`,
     {
       method: "DELETE",
+      headers:
+        await getAuthHeaders(),
     }
   );
 
@@ -179,13 +191,12 @@ export async function getAlertPreferences(
   teamId: number
 ): Promise<AlertPreferences> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${teamId}/alert-preferences?installationId=${encodeURIComponent(
-      installationId
-    )}`
+    `${API_URL}/api/followed-teams/${teamId}/alert-preferences`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
   );
 
   if (!response.ok) {
@@ -202,20 +213,13 @@ export async function saveAlertPreferences(
   settings: AlertPreferences
 ): Promise<AlertPreferences> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${teamId}/alert-preferences?installationId=${encodeURIComponent(
-      installationId
-    )}`,
+    `${API_URL}/api/followed-teams/${teamId}/alert-preferences`,
     {
       method: "PUT",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
+      headers:
+        await getJsonAuthHeaders(),
 
       body: JSON.stringify(
         settings
@@ -235,13 +239,12 @@ export async function saveAlertPreferences(
 export async function getRosterEvents():
   Promise<RosterEvent[]> {
 
-  const installationId =
-    await getInstallationId();
-
   const response = await fetch(
-    `${API_URL}/api/events?installationId=${encodeURIComponent(
-      installationId
-    )}`
+    `${API_URL}/api/events`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
   );
 
   if (!response.ok) {
@@ -254,8 +257,7 @@ export async function getRosterEvents():
 }
 
 export async function registerPushToken(
-  token: string,
-  installationId: string
+  token: string
 ): Promise<void> {
 
   const response = await fetch(
@@ -263,15 +265,12 @@ export async function registerPushToken(
     {
       method: "POST",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
+      headers:
+        await getJsonAuthHeaders(),
 
       body: JSON.stringify({
         token,
         platform: "ios",
-        installationId,
       }),
     }
   );

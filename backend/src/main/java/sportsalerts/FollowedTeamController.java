@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -19,12 +19,23 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/followed-teams")
 public class FollowedTeamController {
 
-    private final FollowedTeamRepository followedTeamRepository;
-    private final AlertPreferenceRepository alertPreferenceRepository;
-    private final TeamRepository teamRepository;
-    private final MlbTransactionService mlbTransactionService;
-    private final RosterEventService rosterEventService;
-    private final AppUserService appUserService;
+    private final FollowedTeamRepository
+        followedTeamRepository;
+
+    private final AlertPreferenceRepository
+        alertPreferenceRepository;
+
+    private final TeamRepository
+        teamRepository;
+
+    private final MlbTransactionService
+        mlbTransactionService;
+
+    private final RosterEventService
+        rosterEventService;
+
+    private final AppUserService
+        appUserService;
 
     public FollowedTeamController(
         FollowedTeamRepository followedTeamRepository,
@@ -34,22 +45,38 @@ public class FollowedTeamController {
         RosterEventService rosterEventService,
         AppUserService appUserService
     ) {
-        this.followedTeamRepository = followedTeamRepository;
-        this.alertPreferenceRepository = alertPreferenceRepository;
-        this.teamRepository = teamRepository;
-        this.mlbTransactionService = mlbTransactionService;
-        this.rosterEventService = rosterEventService;
-        this.appUserService = appUserService;
+        this.followedTeamRepository =
+            followedTeamRepository;
+
+        this.alertPreferenceRepository =
+            alertPreferenceRepository;
+
+        this.teamRepository =
+            teamRepository;
+
+        this.mlbTransactionService =
+            mlbTransactionService;
+
+        this.rosterEventService =
+            rosterEventService;
+
+        this.appUserService =
+            appUserService;
     }
 
     @GetMapping
     public List<FollowedTeam> getFollowedTeams(
-        @RequestParam String installationId
+        @RequestHeader(
+            value = "Authorization",
+            required = false
+        )
+        String authorizationHeader
     ) {
         AppUser user =
-            appUserService.getOrCreateUser(
-                installationId
-            );
+            appUserService
+                .requireAuthenticatedUser(
+                    authorizationHeader
+                );
 
         return followedTeamRepository
             .findByAppUserId(
@@ -59,13 +86,18 @@ public class FollowedTeamController {
 
     @PostMapping
     public FollowedTeam followTeam(
-        @RequestParam String installationId,
+        @RequestHeader(
+            value = "Authorization",
+            required = false
+        )
+        String authorizationHeader,
         @RequestBody FollowedTeam followedTeam
     ) {
         AppUser user =
-            appUserService.getOrCreateUser(
-                installationId
-            );
+            appUserService
+                .requireAuthenticatedUser(
+                    authorizationHeader
+                );
 
         boolean alreadyFollowing =
             followedTeamRepository
@@ -111,12 +143,17 @@ public class FollowedTeamController {
     @Transactional
     public void unfollowTeam(
         @PathVariable Long id,
-        @RequestParam String installationId
+        @RequestHeader(
+            value = "Authorization",
+            required = false
+        )
+        String authorizationHeader
     ) {
         AppUser user =
-            appUserService.getOrCreateUser(
-                installationId
-            );
+            appUserService
+                .requireAuthenticatedUser(
+                    authorizationHeader
+                );
 
         FollowedTeam followedTeam =
             followedTeamRepository

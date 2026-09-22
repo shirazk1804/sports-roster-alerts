@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,16 +33,24 @@ public class PushTokenController {
 
     @PostMapping
     public PushToken registerPushToken(
+        @RequestHeader(
+            value = "Authorization",
+            required = false
+        )
+        String authorizationHeader,
         @RequestBody Map<String, String> body
     ) {
+        AppUser user =
+            appUserService
+                .requireAuthenticatedUser(
+                    authorizationHeader
+                );
+
         String token =
             body.get("token");
 
         String platform =
             body.get("platform");
-
-        String installationId =
-            body.get("installationId");
 
         if (
             token == null ||
@@ -52,24 +61,12 @@ public class PushTokenController {
             );
         }
 
-        if (
-            installationId == null ||
-            installationId.isBlank()
-        ) {
-            throw new IllegalArgumentException(
-                "installationId is required"
-            );
-        }
-
-        AppUser user =
-            appUserService.getOrCreateUser(
-                installationId
-            );
-
         PushToken pushToken =
             pushTokenRepository
                 .findByExpoPushToken(token)
-                .orElseGet(PushToken::new);
+                .orElseGet(
+                    PushToken::new
+                );
 
         pushToken.setExpoPushToken(
             token
