@@ -1,18 +1,57 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import {
+  useEffect,
+} from "react";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import {
+  Stack,
+} from "expo-router";
 
-SplashScreen.preventAutoHideAsync();
+import {
+  registerPushToken,
+} from "../api";
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+import {
+  getExpoPushToken,
+} from "../notifications";
+
+export default function RootLayout() {
+
+  useEffect(() => {
+    async function registerForPush() {
+      try {
+        const token =
+          await getExpoPushToken();
+
+        await registerPushToken(
+          token
+        );
+
+        console.log(
+          "Push token registered with backend."
+        );
+      } catch (error) {
+        console.log(
+          "Could not register push token:",
+          error
+        );
+      }
+    }
+
+    registerForPush();
+  }, []);
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="follow" />
+      <Stack.Screen
+        name="team-settings"
+      />
+      <Stack.Screen name="alerts" />
+    </Stack>
   );
 }

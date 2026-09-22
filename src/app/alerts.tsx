@@ -1,0 +1,362 @@
+import {
+  useCallback,
+  useState,
+} from "react";
+
+import {
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+import {
+  useFocusEffect,
+  useRouter,
+} from "expo-router";
+
+import {
+  getRosterEvents,
+  RosterEvent,
+} from "../api";
+
+const eventLabels:
+  Record<string, string> = {
+
+  IL_PLACEMENT:
+    "Placed on Injured List",
+
+  IL_ACTIVATION:
+    "Activated from Injured List",
+
+  IL_TRANSFER:
+    "Injured List Transfer",
+
+  RECALLED:
+    "Recalled",
+
+  OPTIONED:
+    "Optioned",
+
+  DESIGNATED_FOR_ASSIGNMENT:
+    "Designated for Assignment",
+
+  TRADE:
+    "Trade",
+
+  CONTRACT_SELECTED:
+    "Contract Selected",
+
+  OUTRIGHTED:
+    "Outrighted",
+
+  REHAB_ASSIGNMENT:
+    "Rehab Assignment",
+};
+
+export default function AlertsScreen() {
+  const router = useRouter();
+
+  const [events, setEvents] =
+    useState<RosterEvent[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEvents();
+    }, [])
+  );
+
+  async function loadEvents() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const savedEvents =
+        await getRosterEvents();
+
+      setEvents(savedEvents);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not load alerts.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function formatDate(
+    date: string
+  ) {
+    const parsedDate =
+      new Date(
+        `${date}T12:00:00`
+      );
+
+    return parsedDate.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={
+          styles.content
+        }
+      >
+        <Pressable
+          onPress={() =>
+            router.back()
+          }
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Back
+          </Text>
+        </Pressable>
+
+        <Text style={styles.eyebrow}>
+          SPORTS ROSTER ALERTS
+        </Text>
+
+        <Text style={styles.title}>
+          Recent Alerts
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Recent roster and player
+          availability changes.
+        </Text>
+
+        {loading && (
+          <View
+            style={
+              styles.loadingContainer
+            }
+          >
+            <ActivityIndicator
+              size="large"
+            />
+
+            <Text
+              style={styles.loadingText}
+            >
+              Loading alerts...
+            </Text>
+          </View>
+        )}
+
+        {error !== "" && (
+          <Text style={styles.error}>
+            {error}
+          </Text>
+        )}
+
+        {!loading &&
+          error === "" &&
+          events.length === 0 && (
+            <Text style={styles.empty}>
+              No alerts yet.
+            </Text>
+          )}
+
+        {events.map((event) => (
+          <View
+            key={event.id}
+            style={styles.alertCard}
+          >
+            <View
+              style={styles.alertHeader}
+            >
+              <Text
+                style={styles.emoji}
+              >
+                ⚾
+              </Text>
+
+              <View
+                style={styles.headerText}
+              >
+                <Text
+                  style={styles.team}
+                >
+                  {event.teamName}
+                </Text>
+
+                <Text
+                  style={styles.date}
+                >
+                  {formatDate(
+                    event.eventDate
+                  )}
+                </Text>
+              </View>
+            </View>
+
+            <Text
+              style={styles.eventType}
+            >
+              {eventLabels[
+                event.eventType
+              ] || event.eventType}
+            </Text>
+
+            <Text
+              style={styles.playerName}
+            >
+              {event.playerName}
+            </Text>
+
+            <Text
+              style={styles.description}
+            >
+              {event.description}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F7FA",
+  },
+
+  content: {
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+
+  backButton: {
+    marginBottom: 24,
+  },
+
+  backText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#475569",
+  },
+
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: "#64748B",
+    marginBottom: 8,
+  },
+
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  subtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#64748B",
+    marginTop: 7,
+    marginBottom: 24,
+  },
+
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#64748B",
+  },
+
+  error: {
+    color: "#DC2626",
+    fontSize: 15,
+  },
+
+  empty: {
+    fontSize: 15,
+    color: "#64748B",
+  },
+
+  alertCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 18,
+    marginBottom: 14,
+  },
+
+  alertHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  emoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+
+  headerText: {
+    flex: 1,
+  },
+
+  team: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+
+  date: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+
+  eventType: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#475569",
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+
+  playerName: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 6,
+  },
+
+  description: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#475569",
+  },
+}); 

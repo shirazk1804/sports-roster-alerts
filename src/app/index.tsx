@@ -1,98 +1,332 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  useCallback,
+  useState,
+} from "react";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import {
+  useFocusEffect,
+  useRouter,
+} from "expo-router";
+
+import {
+  FollowedTeam,
+  getFollowedTeams,
+} from "../api";
+
+const leagueEmoji: Record<string, string> = {
+  NFL: "🏈",
+  MLB: "⚾",
+  NBA: "🏀",
+};
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  const [teams, setTeams] =
+    useState<FollowedTeam[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  async function loadFollowedTeams() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const backendTeams =
+        await getFollowedTeams();
+
+      setTeams(backendTeams);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not load followed teams.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFollowedTeams();
+    }, [])
+  );
+
+  function openTeam(team: FollowedTeam) {
+    router.push({
+      pathname: "/team-settings",
+
+      params: {
+        id: String(team.id),
+        league: team.league,
+        name: team.name,
+        emoji:
+          leagueEmoji[team.league] || "🏟️",
+      },
+    });
+  }
+
+  function followTeam() {
+    router.push("/follow");
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+      >
+        <Text style={styles.eyebrow}>
+          SPORTS ROSTER ALERTS
+        </Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        <Text style={styles.title}>
+          Following
+        </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        <Text style={styles.subtitle}>
+          Get notified when player availability
+          or roster status changes.
+        </Text>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <Pressable
+          onPress={() =>
+            router.push("/alerts")
+          }
+          style={styles.alertsButton}
+        >
+          <Text
+            style={styles.alertsButtonText}
+          >
+            View Recent Alerts
+          </Text>
+        </Pressable>
+
+        {loading && (
+          <Text style={styles.message}>
+            Loading teams...
+          </Text>
+        )}
+
+        {error !== "" && (
+          <Text style={styles.error}>
+            {error}
+          </Text>
+        )}
+
+        {!loading &&
+          error === "" &&
+          teams.length === 0 && (
+            <Text style={styles.message}>
+              You aren't following any teams yet.
+            </Text>
+          )}
+
+        {teams.map((team) => (
+          <Pressable
+            key={team.id}
+            onPress={() => openTeam(team)}
+            style={({ pressed }) => [
+              styles.teamCard,
+              pressed &&
+                styles.teamCardPressed,
+            ]}
+          >
+            <View style={styles.teamHeader}>
+              <Text style={styles.sportEmoji}>
+                {leagueEmoji[team.league] ||
+                  "🏟️"}
+              </Text>
+
+              <View style={styles.teamText}>
+                <Text style={styles.league}>
+                  {team.league}
+                </Text>
+
+                <Text style={styles.teamName}>
+                  {team.name}
+                </Text>
+              </View>
+
+              <Text style={styles.arrow}>
+                ›
+              </Text>
+            </View>
+
+            <Text style={styles.alertType}>
+              {team.alertType}
+            </Text>
+          </Pressable>
+        ))}
+
+        <Pressable
+          onPress={followTeam}
+          style={({ pressed }) => [
+            styles.followButton,
+            pressed &&
+              styles.followButtonPressed,
+          ]}
+        >
+          <Text
+            style={styles.followButtonText}
+          >
+            + Follow Team
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: "#F5F7FA",
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+
+  content: {
+    paddingHorizontal: 22,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: "#64748B",
+    marginBottom: 8,
   },
+
   title: {
-    textAlign: 'center',
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#0F172A",
   },
-  code: {
-    textTransform: 'uppercase',
+
+  subtitle: {
+    fontSize: 16,
+    lineHeight: 23,
+    color: "#64748B",
+    marginTop: 8,
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+
+  alertsButton: {
+    backgroundColor: "#E2E8F0",
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: "center",
+    marginBottom: 22,
+  },
+
+  alertsButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+
+  message: {
+    fontSize: 15,
+    color: "#64748B",
+    marginBottom: 18,
+  },
+
+  error: {
+    fontSize: 15,
+    color: "#DC2626",
+    marginBottom: 18,
+  },
+
+  teamCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
+  teamCardPressed: {
+    opacity: 0.7,
+    transform: [
+      {
+        scale: 0.99,
+      },
+    ],
+  },
+
+  teamHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  teamText: {
+    flex: 1,
+  },
+
+  sportEmoji: {
+    fontSize: 34,
+    marginRight: 14,
+  },
+
+  league: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+    marginBottom: 3,
+  },
+
+  teamName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+
+  arrow: {
+    fontSize: 32,
+    color: "#94A3B8",
+  },
+
+  alertType: {
+    marginTop: 15,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+  },
+
+  followButton: {
+    marginTop: 8,
+    backgroundColor: "#0F172A",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+
+  followButtonPressed: {
+    opacity: 0.8,
+  },
+
+  followButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
