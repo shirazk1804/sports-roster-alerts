@@ -11,57 +11,33 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(
-    name = "app_users",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            columnNames = "installation_id"
-        ),
-        @UniqueConstraint(
-            columnNames = "auth_token_hash"
-        )
-    }
-)
+@Table(name = "app_users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "installation_id"),
+        @UniqueConstraint(columnNames = "auth_token_hash")
+})
 public class AppUser {
 
     @Id
-    @GeneratedValue(
-        strategy = GenerationType.IDENTITY
-    )
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(
-        name = "installation_id",
-        nullable = false,
-        unique = true,
-        length = 100
-    )
+    @Column(name = "installation_id", nullable = false, unique = true, length = 100)
     private String installationId;
 
-    @Column(
-        name = "auth_token_hash",
-        unique = true,
-        length = 64
-    )
+    @Column(name = "auth_token_hash", unique = true, length = 64)
     private String authTokenHash;
 
-    @Column(
-        name = "created_at",
-        nullable = false
-    )
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public AppUser() {
     }
 
     public AppUser(
-        String installationId
-    ) {
-        this.installationId =
-            installationId;
+            String installationId) {
+        this.installationId = installationId;
 
-        this.createdAt =
-            LocalDateTime.now();
+        this.createdAt = LocalDateTime.now();
     }
 
     public Long getId() {
@@ -72,18 +48,16 @@ public class AppUser {
         return installationId;
     }
 
-    public String getAuthTokenHash() {
-        return authTokenHash;
-    }
-
     public void setAuthTokenHash(
-        String authTokenHash
-    ) {
-        this.authTokenHash =
-            authTokenHash;
+            String authTokenHash) {
+        this.authTokenHash = authTokenHash;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    String getAuthTokenHash() {
+        return authTokenHash;
     }
 }
