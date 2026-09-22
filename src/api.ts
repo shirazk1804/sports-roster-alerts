@@ -1,3 +1,7 @@
+import {
+  getInstallationId,
+} from "./installation";
+
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL;
 
@@ -87,8 +91,13 @@ export async function getTeams():
 export async function getFollowedTeams():
   Promise<FollowedTeam[]> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/followed-teams`
+    `${API_URL}/api/followed-teams?installationId=${encodeURIComponent(
+      installationId
+    )}`
   );
 
   if (!response.ok) {
@@ -105,8 +114,13 @@ export async function followTeam(
   name: string
 ): Promise<FollowedTeam> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/followed-teams`,
+    `${API_URL}/api/followed-teams?installationId=${encodeURIComponent(
+      installationId
+    )}`,
     {
       method: "POST",
 
@@ -141,8 +155,13 @@ export async function deleteFollowedTeam(
   id: number
 ): Promise<void> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${id}`,
+    `${API_URL}/api/followed-teams/${id}?installationId=${encodeURIComponent(
+      installationId
+    )}`,
     {
       method: "DELETE",
     }

@@ -1,9 +1,12 @@
 package sportsalerts;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -12,14 +15,20 @@ import jakarta.persistence.UniqueConstraint;
     name = "followed_teams",
     uniqueConstraints = {
         @UniqueConstraint(
-            columnNames = {"league", "name"}
+            columnNames = {
+                "app_user_id",
+                "league",
+                "name"
+            }
         )
     }
 )
 public class FollowedTeam {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(
+        strategy = GenerationType.IDENTITY
+    )
     private Long id;
 
     private String league;
@@ -29,6 +38,12 @@ public class FollowedTeam {
     private String emoji;
 
     private String alertType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+        name = "app_user_id"
+    )
+    private AppUser appUser;
 
     public FollowedTeam() {
     }
@@ -53,7 +68,9 @@ public class FollowedTeam {
         return league;
     }
 
-    public void setLeague(String league) {
+    public void setLeague(
+        String league
+    ) {
         this.league = league;
     }
 
@@ -61,7 +78,9 @@ public class FollowedTeam {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(
+        String name
+    ) {
         this.name = name;
     }
 
@@ -69,7 +88,9 @@ public class FollowedTeam {
         return emoji;
     }
 
-    public void setEmoji(String emoji) {
+    public void setEmoji(
+        String emoji
+    ) {
         this.emoji = emoji;
     }
 
@@ -77,7 +98,19 @@ public class FollowedTeam {
         return alertType;
     }
 
-    public void setAlertType(String alertType) {
+    public void setAlertType(
+        String alertType
+    ) {
         this.alertType = alertType;
+    }
+
+    public void setAppUser(
+        AppUser appUser
+    ) {
+        this.appUser = appUser;
+    }
+
+    AppUser getAppUser() {
+        return appUser;
     }
 }

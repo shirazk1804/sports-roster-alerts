@@ -3,6 +3,7 @@ package sportsalerts;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +11,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/followed-teams")
@@ -21,60 +24,84 @@ public class FollowedTeamController {
     private final TeamRepository teamRepository;
     private final MlbTransactionService mlbTransactionService;
     private final RosterEventService rosterEventService;
+    private final AppUserService appUserService;
 
     public FollowedTeamController(
         FollowedTeamRepository followedTeamRepository,
         AlertPreferenceRepository alertPreferenceRepository,
         TeamRepository teamRepository,
         MlbTransactionService mlbTransactionService,
-        RosterEventService rosterEventService
+        RosterEventService rosterEventService,
+        AppUserService appUserService
     ) {
         this.followedTeamRepository = followedTeamRepository;
         this.alertPreferenceRepository = alertPreferenceRepository;
         this.teamRepository = teamRepository;
         this.mlbTransactionService = mlbTransactionService;
         this.rosterEventService = rosterEventService;
+        this.appUserService = appUserService;
     }
 
     @GetMapping
-    public List<FollowedTeam> getFollowedTeams() {
-        return followedTeamRepository.findAll();
+    public List<FollowedTeam> getFollowedTeams(
+        @RequestParam String installationId
+    ) {
+        AppUser user =
+            appUserService.getOrCreateUser(
+                installationId
+            );
+
+        return followedTeamRepository
+            .findByAppUserId(
+                user.getId()
+            );
     }
 
     @PostMapping
     public FollowedTeam followTeam(
+        @RequestParam String installationId,
         @RequestBody FollowedTeam followedTeam
     ) {
-        boolean alreadyFollowing =
-            followedTeamRepository.existsByLeagueAndName(
-                followedTeam.getLeague(),
-                followedTeam.getName()
+        AppUser user =
+            appUserService.getOrCreateUser(
+                installationId
             );
+
+        boolean alreadyFollowing =
+            followedTeamRepository
+                .existsByAppUserIdAndLeagueAndName(
+                    user.getId(),
+                    followedTeam.getLeague(),
+                    followedTeam.getName()
+                );
 
         if (alreadyFollowing) {
             return followedTeamRepository
-                .findAll()
-                .stream()
-                .filter(team ->
-                    team.getLeague().equals(
-                        followedTeam.getLeague()
-                    )
-                    &&
-                    team.getName().equals(
-                        followedTeam.getName()
-                    )
+                .findByAppUserIdAndLeagueAndName(
+                    user.getId(),
+                    followedTeam.getLeague(),
+                    followedTeam.getName()
                 )
-                .findFirst()
-                .orElse(followedTeam);
+                .orElseThrow();
         }
+
+        followedTeam.setAppUser(
+            user
+        );
 
         FollowedTeam savedTeam =
             followedTeamRepository.save(
                 followedTeam
             );
 
-        if ("MLB".equals(savedTeam.getLeague())) {
-            backfillMlbTransactions(savedTeam);
+        if (
+            "MLB".equals(
+                savedTeam.getLeague()
+            )
+        ) {
+            backfillMlbTransactions(
+                savedTeam
+            );
         }
 
         return savedTeam;
@@ -83,13 +110,43 @@ public class FollowedTeamController {
     @DeleteMapping("/{id}")
     @Transactional
     public void unfollowTeam(
-        @PathVariable Long id
+        @PathVariable Long id,
+        @RequestParam String installationId
     ) {
+        AppUser user =
+            appUserService.getOrCreateUser(
+                installationId
+            );
+
+        FollowedTeam followedTeam =
+            followedTeamRepository
+                .findById(id)
+                .orElseThrow(
+                    () ->
+                        new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Followed team not found"
+                        )
+                );
+
+        if (
+            followedTeam.getAppUser() == null ||
+            !followedTeam
+                .getAppUser()
+                .getId()
+                .equals(user.getId())
+        ) {
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Followed team not found"
+            );
+        }
+
         alertPreferenceRepository
             .deleteByFollowedTeamId(id);
 
         followedTeamRepository
-            .deleteById(id);
+            .delete(followedTeam);
     }
 
     private void backfillMlbTransactions(
