@@ -9,6 +9,12 @@ export type ApiTeam = {
   externalTeamId: number | null;
 };
 
+export type AppUser = {
+  id: number;
+  installationId: string;
+  createdAt: string;
+};
+
 export type FollowedTeam = {
   id: number;
   league: string;
@@ -33,6 +39,34 @@ export type RosterEvent = {
   description: string;
   createdAt: string;
 };
+
+export async function registerInstallation(
+  installationId: string
+): Promise<AppUser> {
+
+  const response = await fetch(
+    `${API_URL}/api/users/register`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        installationId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not register installation (${response.status})`
+    );
+  }
+
+  return response.json();
+}
 
 export async function getTeams():
   Promise<ApiTeam[]> {

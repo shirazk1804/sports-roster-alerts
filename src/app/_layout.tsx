@@ -1,12 +1,8 @@
-import {
-  useEffect,
-} from "react";
+import { Stack } from "expo-router";
+import { useEffect } from "react";
 
 import {
-  Stack,
-} from "expo-router";
-
-import {
+  registerInstallation,
   registerPushToken,
 } from "../api";
 
@@ -14,30 +10,52 @@ import {
   getExpoPushToken,
 } from "../notifications";
 
+import {
+  getInstallationId,
+} from "../installation";
+
 export default function RootLayout() {
 
   useEffect(() => {
-    async function registerForPush() {
+
+    async function initializeApp() {
+
       try {
-        const token =
+        const installationId =
+          await getInstallationId();
+
+        const user =
+          await registerInstallation(
+            installationId
+          );
+
+        console.log(
+          "Installation registered. User ID:",
+          user.id
+        );
+
+        const pushToken =
           await getExpoPushToken();
 
         await registerPushToken(
-          token
+          pushToken
         );
 
         console.log(
           "Push token registered with backend."
         );
+
       } catch (error) {
+
         console.log(
-          "Could not register push token:",
+          "Could not initialize app:",
           error
         );
       }
     }
 
-    registerForPush();
+    initializeApp();
+
   }, []);
 
   return (
@@ -48,9 +66,7 @@ export default function RootLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="follow" />
-      <Stack.Screen
-        name="team-settings"
-      />
+      <Stack.Screen name="team-settings" />
       <Stack.Screen name="alerts" />
     </Stack>
   );
