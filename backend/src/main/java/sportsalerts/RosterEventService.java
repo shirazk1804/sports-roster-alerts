@@ -16,62 +16,44 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RosterEventService {
 
-    private final RosterEventRepository
-        rosterEventRepository;
+    private final RosterEventRepository rosterEventRepository;
 
-    private final FollowedTeamRepository
-        followedTeamRepository;
+    private final FollowedTeamRepository followedTeamRepository;
 
-    private final AlertPreferenceRepository
-        alertPreferenceRepository;
+    private final AlertPreferenceRepository alertPreferenceRepository;
 
     public RosterEventService(
-        RosterEventRepository rosterEventRepository,
-        FollowedTeamRepository followedTeamRepository,
-        AlertPreferenceRepository alertPreferenceRepository
-    ) {
-        this.rosterEventRepository =
-            rosterEventRepository;
+            RosterEventRepository rosterEventRepository,
+            FollowedTeamRepository followedTeamRepository,
+            AlertPreferenceRepository alertPreferenceRepository) {
+        this.rosterEventRepository = rosterEventRepository;
 
-        this.followedTeamRepository =
-            followedTeamRepository;
+        this.followedTeamRepository = followedTeamRepository;
 
-        this.alertPreferenceRepository =
-            alertPreferenceRepository;
+        this.alertPreferenceRepository = alertPreferenceRepository;
     }
 
     @Transactional
-    public List<RosterEvent>
-        saveMlbEvents(
+    public List<RosterEvent> saveMlbEvents(
             Long teamId,
-            List<MlbTransactionEvent> events
-        ) {
+            List<MlbTransactionEvent> events) {
 
-        List<RosterEvent> savedEvents =
-            new ArrayList<>();
+        List<RosterEvent> savedEvents = new ArrayList<>();
 
-        for (
-            MlbTransactionEvent event :
-            events
-        ) {
-            String dedupeKey =
-                createDedupeKey(
+        for (MlbTransactionEvent event : events) {
+            String dedupeKey = createDedupeKey(
                     teamId,
-                    event
-                );
+                    event);
 
-            boolean alreadyExists =
-                rosterEventRepository
+            boolean alreadyExists = rosterEventRepository
                     .existsByDedupeKey(
-                        dedupeKey
-                    );
+                            dedupeKey);
 
             if (alreadyExists) {
                 continue;
             }
 
-            RosterEvent rosterEvent =
-                new RosterEvent(
+            RosterEvent rosterEvent = new RosterEvent(
                     "MLB",
                     teamId,
                     event.teamName(),
@@ -80,14 +62,11 @@ public class RosterEventService {
                     event.playerName(),
                     event.eventType(),
                     LocalDate.parse(
-                        event.date()
-                    ),
+                            event.date()),
                     event.description(),
-                    dedupeKey
-                );
+                    dedupeKey);
 
-            RosterEvent saved =
-                rosterEventRepository
+            RosterEvent saved = rosterEventRepository
                     .save(rosterEvent);
 
             savedEvents.add(saved);
@@ -96,73 +75,47 @@ public class RosterEventService {
         return savedEvents;
     }
 
-    public List<RosterEvent>
-        getVisibleEvents() {
+    public List<RosterEvent> getVisibleEvents() {
 
-        List<FollowedTeam> followedTeams =
-            followedTeamRepository.findAll();
+        List<FollowedTeam> followedTeams = followedTeamRepository.findAll();
 
-        Set<String> followedMlbTeamNames =
-            followedTeams
+        Set<String> followedMlbTeamNames = followedTeams
                 .stream()
                 .filter(
-                    team ->
-                        "MLB".equals(
-                            team.getLeague()
-                        )
-                )
+                        team -> "MLB".equals(
+                                team.getLeague()))
                 .map(
-                    FollowedTeam::getName
-                )
+                        FollowedTeam::getName)
                 .collect(
-                    Collectors.toSet()
-                );
+                        Collectors.toSet());
 
-        if (
-            followedMlbTeamNames.isEmpty()
-        ) {
+        if (followedMlbTeamNames.isEmpty()) {
             return List.of();
         }
 
-        List<RosterEvent> allEvents =
-            rosterEventRepository
+        List<RosterEvent> allEvents = rosterEventRepository
                 .findAllByOrderByEventDateDescIdDesc();
 
-        List<RosterEvent> visibleEvents =
-            new ArrayList<>();
+        List<RosterEvent> visibleEvents = new ArrayList<>();
 
-        for (
-            RosterEvent event :
-            allEvents
-        ) {
-            if (
-                !"MLB".equals(
-                    event.getLeague()
-                )
-            ) {
+        for (RosterEvent event : allEvents) {
+            if (!"MLB".equals(
+                    event.getLeague())) {
                 continue;
             }
 
-            if (
-                !followedMlbTeamNames.contains(
-                    event.getTeamName()
-                )
-            ) {
+            if (!followedMlbTeamNames.contains(
+                    event.getTeamName())) {
                 continue;
             }
 
-            FollowedTeam followedTeam =
-                followedTeams
+            FollowedTeam followedTeam = followedTeams
                     .stream()
                     .filter(
-                        team ->
-                            "MLB".equals(
-                                team.getLeague()
-                            ) &&
-                            team.getName().equals(
-                                event.getTeamName()
-                            )
-                    )
+                            team -> "MLB".equals(
+                                    team.getLeague()) &&
+                                    team.getName().equals(
+                                            event.getTeamName()))
                     .findFirst()
                     .orElse(null);
 
@@ -170,15 +123,11 @@ public class RosterEventService {
                 continue;
             }
 
-            if (
-                shouldNotify(
+            if (shouldNotify(
                     followedTeam,
-                    event
-                )
-            ) {
+                    event)) {
                 visibleEvents.add(
-                    event
-                );
+                        event);
             }
         }
 
@@ -186,48 +135,37 @@ public class RosterEventService {
     }
 
     public boolean shouldNotify(
-        FollowedTeam followedTeam,
-        RosterEvent event
-    ) {
-        List<AlertPreference> preferences =
-            alertPreferenceRepository
+            FollowedTeam followedTeam,
+            RosterEvent event) {
+        List<AlertPreference> preferences = alertPreferenceRepository
                 .findByFollowedTeamId(
-                    followedTeam.getId()
-                );
+                        followedTeam.getId());
 
         if (preferences.isEmpty()) {
             return true;
         }
 
-        Map<String, Boolean>
-            preferenceMap =
-                preferences
-                    .stream()
-                    .collect(
+        Map<String, Boolean> preferenceMap = preferences
+                .stream()
+                .collect(
                         Collectors.toMap(
-                            AlertPreference::getAlertKey,
-                            AlertPreference::isEnabled
-                        )
-                    );
+                                AlertPreference::getAlertKey,
+                                AlertPreference::isEnabled));
 
-        String preferenceKey =
-            getPreferenceKey(
-                event.getEventType()
-            );
+        String preferenceKey = getPreferenceKey(
+                event.getEventType());
 
         if (preferenceKey == null) {
             return true;
         }
 
         return preferenceMap.getOrDefault(
-            preferenceKey,
-            true
-        );
+                preferenceKey,
+                true);
     }
 
     private String getPreferenceKey(
-        String eventType
-    ) {
+            String eventType) {
         return switch (eventType) {
             case "IL_PLACEMENT" ->
                 "IL placements";
@@ -259,48 +197,85 @@ public class RosterEventService {
             case "REHAB_ASSIGNMENT" ->
                 "Injury status changes";
 
+            case "BEREAVEMENT_PLACEMENT" ->
+                "Injury status changes";
+
+            case "BEREAVEMENT_ACTIVATION" ->
+                "Injury status changes";
+
+            case "PATERNITY_PLACEMENT" ->
+                "Injury status changes";
+
+            case "PATERNITY_ACTIVATION" ->
+                "Injury status changes";
+
+            case "RESTRICTED_LIST_PLACEMENT" ->
+                "Injury status changes";
+
+            case "RESTRICTED_LIST_ACTIVATION" ->
+                "Injury status changes";
+
+            case "SUSPENDED" ->
+                "Injury status changes";
+                
+            case "SUSPENSION_REINSTATED" ->
+                "Injury status changes";
+
+            case "ROSTER_ACTIVATION" ->
+                "Injury status changes";
+
+            case "RELEASED" ->
+                "Signings and releases";
+
+            case "SIGNED" ->
+                "Signings and releases";
+
+            case "MINOR_LEAGUE_SIGNING" ->
+                "Signings and releases";
+
+            case "WAIVER_CLAIM" ->
+                "Signings and releases";
+
+            case "WAIVERS" ->
+                "Signings and releases";
+
+            case "RETIRED" ->
+                "Signings and releases";
+
             default ->
                 null;
         };
     }
 
     private String createDedupeKey(
-        Long teamId,
-        MlbTransactionEvent event
-    ) {
-        String rawKey =
-            teamId
-            + "|"
-            + event.playerId()
-            + "|"
-            + event.eventType()
-            + "|"
-            + event.date()
-            + "|"
-            + event.description();
+            Long teamId,
+            MlbTransactionEvent event) {
+        String rawKey = teamId
+                + "|"
+                + event.playerId()
+                + "|"
+                + event.eventType()
+                + "|"
+                + event.date()
+                + "|"
+                + event.description();
 
         try {
-            MessageDigest digest =
-                MessageDigest.getInstance(
-                    "SHA-256"
-                );
+            MessageDigest digest = MessageDigest.getInstance(
+                    "SHA-256");
 
-            byte[] hash =
-                digest.digest(
+            byte[] hash = digest.digest(
                     rawKey.getBytes(
-                        StandardCharsets.UTF_8
-                    )
-                );
+                            StandardCharsets.UTF_8));
 
             return HexFormat
-                .of()
-                .formatHex(hash);
+                    .of()
+                    .formatHex(hash);
 
         } catch (Exception exception) {
             throw new RuntimeException(
-                "Could not create event dedupe key",
-                exception
-            );
+                    "Could not create event dedupe key",
+                    exception);
         }
     }
 }

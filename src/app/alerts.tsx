@@ -55,6 +55,51 @@ const eventLabels:
 
   REHAB_ASSIGNMENT:
     "Rehab Assignment",
+  
+  BEREAVEMENT_PLACEMENT:
+  "Placed on Bereavement List",
+
+BEREAVEMENT_ACTIVATION:
+  "Activated from Bereavement List",
+
+PATERNITY_PLACEMENT:
+  "Placed on Paternity List",
+
+PATERNITY_ACTIVATION:
+  "Activated from Paternity List",
+
+RESTRICTED_LIST_PLACEMENT:
+  "Placed on Restricted List",
+
+RESTRICTED_LIST_ACTIVATION:
+  "Activated from Restricted List",
+
+SUSPENDED:
+  "Suspended",
+
+SUSPENSION_REINSTATED:
+  "Reinstated from Suspension",
+
+WAIVER_CLAIM:
+  "Claimed Off Waivers",
+
+WAIVERS:
+  "Placed on Waivers",
+
+RELEASED:
+  "Released",
+
+SIGNED:
+  "Signed",
+
+MINOR_LEAGUE_SIGNING:
+  "Minor League Signing",
+
+RETIRED:
+  "Retired",
+
+ROSTER_ACTIVATION:
+  "Activated",
 };
 
 export default function AlertsScreen() {

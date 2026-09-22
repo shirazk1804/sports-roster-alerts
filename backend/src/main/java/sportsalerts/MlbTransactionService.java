@@ -16,218 +16,165 @@ public class MlbTransactionService {
     private final ObjectMapper objectMapper;
 
     public MlbTransactionService(
-        ObjectMapper objectMapper
-    ) {
+            ObjectMapper objectMapper) {
         this.restClient = RestClient.create(
-            "https://statsapi.mlb.com"
-        );
+                "https://statsapi.mlb.com");
 
         this.objectMapper = objectMapper;
     }
 
     public String getTransactions(
-        Long teamId,
-        String startDate,
-        String endDate
-    ) {
+            Long teamId,
+            String startDate,
+            String endDate) {
         return restClient
-            .get()
-            .uri(uriBuilder ->
-                uriBuilder
-                    .path("/api/v1/transactions")
-                    .queryParam("teamId", teamId)
-                    .queryParam("startDate", startDate)
-                    .queryParam("endDate", endDate)
-                    .build()
-            )
-            .retrieve()
-            .body(String.class);
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v1/transactions")
+                        .queryParam("teamId", teamId)
+                        .queryParam("startDate", startDate)
+                        .queryParam("endDate", endDate)
+                        .build())
+                .retrieve()
+                .body(String.class);
     }
 
     public String getAllMlbTransactions(
-        String startDate,
-        String endDate
-    ) {
+            String startDate,
+            String endDate) {
         return restClient
-            .get()
-            .uri(uriBuilder ->
-                uriBuilder
-                    .path("/api/v1/transactions")
-                    .queryParam("startDate", startDate)
-                    .queryParam("endDate", endDate)
-                    .queryParam("sportId", 1)
-                    .build()
-            )
-            .retrieve()
-            .body(String.class);
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v1/transactions")
+                        .queryParam("startDate", startDate)
+                        .queryParam("endDate", endDate)
+                        .queryParam("sportId", 1)
+                        .build())
+                .retrieve()
+                .body(String.class);
     }
 
-    public List<MlbTransactionEvent>
-        getNormalizedTransactions(
+    public List<MlbTransactionEvent> getNormalizedTransactions(
             Long teamId,
             String startDate,
-            String endDate
-        ) {
+            String endDate) {
 
-        String rawJson =
-            getTransactions(
+        String rawJson = getTransactions(
                 teamId,
                 startDate,
-                endDate
-            );
+                endDate);
 
         return getNormalizedTransactionsForTeam(
-            rawJson,
-            teamId
-        );
+                rawJson,
+                teamId);
     }
 
-    public List<MlbTransactionEvent>
-        getNormalizedTransactionsForTeam(
+    public List<MlbTransactionEvent> getNormalizedTransactionsForTeam(
             String rawJson,
-            Long teamId
-        ) {
+            Long teamId) {
 
-        List<MlbTransactionEvent> events =
-            new ArrayList<>();
+        List<MlbTransactionEvent> events = new ArrayList<>();
 
         try {
-            JsonNode root =
-                objectMapper.readTree(rawJson);
+            JsonNode root = objectMapper.readTree(rawJson);
 
-            JsonNode transactions =
-                root.get("transactions");
+            JsonNode transactions = root.get("transactions");
 
-            if (
-                transactions == null ||
-                !transactions.isArray()
-            ) {
+            if (transactions == null ||
+                    !transactions.isArray()) {
                 return events;
             }
 
-            for (
-                JsonNode transaction :
-                transactions
-            ) {
-                if (
-                    !belongsToTeam(
+            for (JsonNode transaction : transactions) {
+                if (!belongsToTeam(
                         transaction,
-                        teamId
-                    )
-                ) {
+                        teamId)) {
                     continue;
                 }
 
-                String typeCode =
-                    getText(
+                String typeCode = getText(
                         transaction,
-                        "typeCode"
-                    );
+                        "typeCode");
 
-                String description =
-                    getText(
+                String description = getText(
                         transaction,
-                        "description"
-                    );
+                        "description");
 
-                String eventType =
-                    normalizeEventType(
+                String eventType = normalizeEventType(
                         typeCode,
-                        description
-                    );
+                        description);
 
                 if (eventType == null) {
                     continue;
                 }
 
-                JsonNode person =
-                    transaction.get("person");
+                JsonNode person = transaction.get("person");
 
-                Long sourceTransactionId =
-                    getLong(
+                Long sourceTransactionId = getLong(
                         transaction,
-                        "id"
-                    );
+                        "id");
 
-                Long playerId =
-                    person == null
+                Long playerId = person == null
                         ? null
                         : getLong(
-                            person,
-                            "id"
-                        );
+                                person,
+                                "id");
 
-                String playerName =
-                    person == null
+                String playerName = person == null
                         ? "Unknown Player"
                         : getText(
-                            person,
-                            "fullName"
-                        );
+                                person,
+                                "fullName");
 
-                String teamName =
-                    getTeamName(
+                String teamName = getTeamName(
                         transaction,
-                        teamId
-                    );
+                        teamId);
 
-                String date =
-                    getText(
+                String date = getText(
                         transaction,
-                        "date"
-                    );
+                        "date");
 
                 events.add(
-                    new MlbTransactionEvent(
-                        sourceTransactionId,
-                        playerId,
-                        playerName,
-                        teamName,
-                        eventType,
-                        date,
-                        description
-                    )
-                );
+                        new MlbTransactionEvent(
+                                sourceTransactionId,
+                                playerId,
+                                playerName,
+                                teamName,
+                                eventType,
+                                date,
+                                description));
             }
 
             return events;
 
         } catch (Exception exception) {
             throw new RuntimeException(
-                "Could not parse MLB transactions",
-                exception
-            );
+                    "Could not parse MLB transactions",
+                    exception);
         }
     }
 
     private boolean belongsToTeam(
-        JsonNode transaction,
-        Long teamId
-    ) {
-        JsonNode toTeam =
-            transaction.get("toTeam");
+            JsonNode transaction,
+            Long teamId) {
+        JsonNode toTeam = transaction.get("toTeam");
 
         if (toTeam != null) {
-            Long toTeamId =
-                getLong(
+            Long toTeamId = getLong(
                     toTeam,
-                    "id"
-                );
+                    "id");
 
             if (teamId.equals(toTeamId)) {
                 return true;
             }
         }
 
-        JsonNode fromTeam =
-            transaction.get("fromTeam");
+        JsonNode fromTeam = transaction.get("fromTeam");
 
         if (fromTeam != null) {
-            Long fromTeamId =
-                getLong(
+            Long fromTeamId = getLong(
                     fromTeam,
-                    "id"
-                );
+                    "id");
 
             if (teamId.equals(fromTeamId)) {
                 return true;
@@ -238,42 +185,33 @@ public class MlbTransactionService {
     }
 
     private String getTeamName(
-        JsonNode transaction,
-        Long teamId
-    ) {
-        JsonNode toTeam =
-            transaction.get("toTeam");
+            JsonNode transaction,
+            Long teamId) {
+        JsonNode toTeam = transaction.get("toTeam");
 
         if (toTeam != null) {
-            Long toTeamId =
-                getLong(
+            Long toTeamId = getLong(
                     toTeam,
-                    "id"
-                );
+                    "id");
 
             if (teamId.equals(toTeamId)) {
                 return getText(
-                    toTeam,
-                    "name"
-                );
+                        toTeam,
+                        "name");
             }
         }
 
-        JsonNode fromTeam =
-            transaction.get("fromTeam");
+        JsonNode fromTeam = transaction.get("fromTeam");
 
         if (fromTeam != null) {
-            Long fromTeamId =
-                getLong(
+            Long fromTeamId = getLong(
                     fromTeam,
-                    "id"
-                );
+                    "id");
 
             if (teamId.equals(fromTeamId)) {
                 return getText(
-                    fromTeam,
-                    "name"
-                );
+                        fromTeam,
+                        "name");
             }
         }
 
@@ -281,64 +219,181 @@ public class MlbTransactionService {
     }
 
     private String normalizeEventType(
-        String typeCode,
-        String description
-    ) {
-        String lowerDescription =
-            description == null
+            String typeCode,
+            String description) {
+        String code = typeCode == null
+                ? ""
+                : typeCode.toUpperCase();
+
+        String desc = description == null
                 ? ""
                 : description.toLowerCase();
 
-        if (
-            "SC".equals(typeCode) &&
-            lowerDescription.contains(
-                "placed"
-            ) &&
-            lowerDescription.contains(
-                "injured list"
-            )
-        ) {
-            return "IL_PLACEMENT";
+        // Bereavement list
+        if (desc.contains("bereavement list")) {
+            if (desc.contains("placed") ||
+                    code.equals("BRV")) {
+                return "BEREAVEMENT_PLACEMENT";
+            }
+
+            if (desc.contains("activated") ||
+                    desc.contains("reinstated") ||
+                    code.equals("RBL")) {
+                return "BEREAVEMENT_ACTIVATION";
+            }
         }
 
-        if (
-            "SC".equals(typeCode) &&
-            lowerDescription.contains(
-                "activated"
-            ) &&
-            lowerDescription.contains(
-                "injured list"
-            )
-        ) {
-            return "IL_ACTIVATION";
+        // Paternity list
+        if (desc.contains("paternity list")) {
+            if (desc.contains("placed") ||
+                    code.equals("PCT")) {
+                return "PATERNITY_PLACEMENT";
+            }
+
+            if (desc.contains("activated") ||
+                    desc.contains("reinstated") ||
+                    code.equals("RPC")) {
+                return "PATERNITY_ACTIVATION";
+            }
         }
 
-        if (
-            "SC".equals(typeCode) &&
-            lowerDescription.contains(
-                "transferred"
-            ) &&
-            lowerDescription.contains(
-                "injured list"
-            )
-        ) {
+        // Restricted list
+        if (desc.contains("restricted list")) {
+            if (desc.contains("placed")) {
+                return "RESTRICTED_LIST_PLACEMENT";
+            }
+
+            if (desc.contains("activated") ||
+                    desc.contains("reinstated")) {
+                return "RESTRICTED_LIST_ACTIVATION";
+            }
+        }
+
+        // Injured list transfers must be checked
+        // before normal IL placements.
+        if (desc.contains("transferred") &&
+                desc.contains("injured list")) {
             return "IL_TRANSFER";
         }
 
-        return switch (typeCode) {
-            case "CU" ->
+        if (desc.contains("placed") &&
+                desc.contains("injured list")) {
+            return "IL_PLACEMENT";
+        }
+
+        if ((desc.contains("activated") ||
+                desc.contains("reinstated")) &&
+                desc.contains("injured list")) {
+            return "IL_ACTIVATION";
+        }
+
+        // Suspensions
+        if (desc.contains("reinstated") &&
+                desc.contains("suspension")) {
+            return "SUSPENSION_REINSTATED";
+        }
+
+        if (desc.contains("suspended") ||
+                desc.contains("suspension")) {
+            return "SUSPENDED";
+        }
+
+        // Waivers
+        if (desc.contains("claimed") &&
+                desc.contains("waiver")) {
+            return "WAIVER_CLAIM";
+        }
+
+        if (desc.contains("placed") &&
+                desc.contains("waiver")) {
+            return "WAIVERS";
+        }
+
+        // Releases / signings
+        if (desc.contains("released")) {
+            return "RELEASED";
+        }
+
+        if (desc.contains("signed") &&
+                desc.contains("minor league")) {
+            return "MINOR_LEAGUE_SIGNING";
+        }
+
+        if (desc.contains("signed") &&
+                (desc.contains("free agent") ||
+                        desc.contains("contract"))) {
+            return "SIGNED";
+        }
+
+        // Standard roster moves
+        if (desc.contains("designated for assignment")) {
+            return "DESIGNATED_FOR_ASSIGNMENT";
+        }
+
+        if (desc.contains("recalled")) {
+            return "RECALLED";
+        }
+
+        if (desc.contains("optioned")) {
+            return "OPTIONED";
+        }
+
+        if (desc.contains("selected the contract")) {
+            return "CONTRACT_SELECTED";
+        }
+
+        if (desc.contains("outright")) {
+            return "OUTRIGHTED";
+        }
+
+        if (desc.contains("rehab assignment")) {
+            return "REHAB_ASSIGNMENT";
+        }
+
+        if (desc.contains("traded")) {
+            return "TRADE";
+        }
+
+        if (desc.contains("retired")) {
+            return "RETIRED";
+        }
+
+        // Some transactions simply say "activated"
+        // without identifying a particular list.
+        if (desc.contains("activated")) {
+            return "ROSTER_ACTIVATION";
+        }
+
+        // Code fallbacks.
+        // Keep our existing codes and support additional
+        // MLB transaction codes.
+        return switch (code) {
+
+            case "BRV" ->
+                "BEREAVEMENT_PLACEMENT";
+
+            case "RBL" ->
+                "BEREAVEMENT_ACTIVATION";
+
+            case "PCT" ->
+                "PATERNITY_PLACEMENT";
+
+            case "RPC" ->
+                "PATERNITY_ACTIVATION";
+
+            case "CU", "SU" ->
                 "RECALLED";
 
-            case "OPT" ->
+            case "OPT", "OA" ->
                 "OPTIONED";
 
             case "DES" ->
                 "DESIGNATED_FOR_ASSIGNMENT";
 
-            case "TR" ->
+            case "TE", "TR" ->
                 "TRADE";
 
-            case "SE" ->
+            case "SE", "PUR" ->
                 "CONTRACT_SELECTED";
 
             case "OUT" ->
@@ -347,22 +402,36 @@ public class MlbTransactionService {
             case "ASG" ->
                 "REHAB_ASSIGNMENT";
 
+            case "IL" ->
+                "IL_PLACEMENT";
+
+            case "ACT" ->
+                "IL_ACTIVATION";
+
+            case "RE" ->
+                "RELEASED";
+
+            case "WV" ->
+                "WAIVERS";
+
+            case "MIN" ->
+                "MINOR_LEAGUE_SIGNING";
+
+            case "RET" ->
+                "RETIRED";
+
             default ->
                 null;
         };
     }
 
     private String getText(
-        JsonNode node,
-        String field
-    ) {
-        JsonNode value =
-            node.get(field);
+            JsonNode node,
+            String field) {
+        JsonNode value = node.get(field);
 
-        if (
-            value == null ||
-            value.isNull()
-        ) {
+        if (value == null ||
+                value.isNull()) {
             return "";
         }
 
@@ -370,16 +439,12 @@ public class MlbTransactionService {
     }
 
     private Long getLong(
-        JsonNode node,
-        String field
-    ) {
-        JsonNode value =
-            node.get(field);
+            JsonNode node,
+            String field) {
+        JsonNode value = node.get(field);
 
-        if (
-            value == null ||
-            value.isNull()
-        ) {
+        if (value == null ||
+                value.isNull()) {
             return null;
         }
 
