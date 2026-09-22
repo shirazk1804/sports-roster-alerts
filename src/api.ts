@@ -178,8 +178,13 @@ export async function getAlertPreferences(
   teamId: number
 ): Promise<AlertPreferences> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${teamId}/alert-preferences`
+    `${API_URL}/api/followed-teams/${teamId}/alert-preferences?installationId=${encodeURIComponent(
+      installationId
+    )}`
   );
 
   if (!response.ok) {
@@ -196,8 +201,13 @@ export async function saveAlertPreferences(
   settings: AlertPreferences
 ): Promise<AlertPreferences> {
 
+  const installationId =
+    await getInstallationId();
+
   const response = await fetch(
-    `${API_URL}/api/followed-teams/${teamId}/alert-preferences`,
+    `${API_URL}/api/followed-teams/${teamId}/alert-preferences?installationId=${encodeURIComponent(
+      installationId
+    )}`,
     {
       method: "PUT",
 

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,33 +28,42 @@ public class AlertPreferenceController {
     private final FollowedTeamRepository
         followedTeamRepository;
 
+    private final AppUserService
+        appUserService;
+
     public AlertPreferenceController(
         AlertPreferenceRepository alertPreferenceRepository,
-        FollowedTeamRepository followedTeamRepository
+        FollowedTeamRepository followedTeamRepository,
+        AppUserService appUserService
     ) {
         this.alertPreferenceRepository =
             alertPreferenceRepository;
 
         this.followedTeamRepository =
             followedTeamRepository;
+
+        this.appUserService =
+            appUserService;
     }
 
     @GetMapping
     public Map<String, Boolean> getPreferences(
-        @PathVariable Long teamId
+        @PathVariable Long teamId,
+        @RequestParam String installationId
     ) {
-        if (!followedTeamRepository.existsById(teamId)) {
-            throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Followed team not found"
+        FollowedTeam team =
+            getOwnedFollowedTeam(
+                teamId,
+                installationId
             );
-        }
 
         Map<String, Boolean> preferences =
             new LinkedHashMap<>();
 
         alertPreferenceRepository
-            .findByFollowedTeamId(teamId)
+            .findByFollowedTeamId(
+                team.getId()
+            )
             .forEach(
                 preference ->
                     preferences.put(
@@ -69,18 +79,14 @@ public class AlertPreferenceController {
     @Transactional
     public Map<String, Boolean> savePreferences(
         @PathVariable Long teamId,
+        @RequestParam String installationId,
         @RequestBody Map<String, Boolean> settings
     ) {
         FollowedTeam team =
-            followedTeamRepository
-                .findById(teamId)
-                .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Followed team not found"
-                        )
-                );
+            getOwnedFollowedTeam(
+                teamId,
+                installationId
+            );
 
         List<AlertPreference>
             existingPreferences =
@@ -102,9 +108,8 @@ public class AlertPreferenceController {
                     );
 
         for (
-            Map.Entry<String, Boolean>
-                entry :
-                settings.entrySet()
+            Map.Entry<String, Boolean> entry :
+            settings.entrySet()
         ) {
             String alertKey =
                 entry.getKey();
@@ -136,5 +141,41 @@ public class AlertPreferenceController {
         }
 
         return settings;
+    }
+
+    private FollowedTeam getOwnedFollowedTeam(
+        Long teamId,
+        String installationId
+    ) {
+        AppUser user =
+            appUserService.getOrCreateUser(
+                installationId
+            );
+
+        FollowedTeam team =
+            followedTeamRepository
+                .findById(teamId)
+                .orElseThrow(
+                    () ->
+                        new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Followed team not found"
+                        )
+                );
+
+        if (
+            team.getAppUser() == null ||
+            !team
+                .getAppUser()
+                .getId()
+                .equals(user.getId())
+        ) {
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Followed team not found"
+            );
+        }
+
+        return team;
     }
 }
