@@ -1,10 +1,8 @@
 package sportsalerts;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,13 +18,22 @@ public class FollowedTeamController {
 
     private final FollowedTeamRepository followedTeamRepository;
     private final AlertPreferenceRepository alertPreferenceRepository;
+    private final TeamRepository teamRepository;
+    private final MlbTransactionService mlbTransactionService;
+    private final RosterEventService rosterEventService;
 
     public FollowedTeamController(
         FollowedTeamRepository followedTeamRepository,
-        AlertPreferenceRepository alertPreferenceRepository
+        AlertPreferenceRepository alertPreferenceRepository,
+        TeamRepository teamRepository,
+        MlbTransactionService mlbTransactionService,
+        RosterEventService rosterEventService
     ) {
         this.followedTeamRepository = followedTeamRepository;
         this.alertPreferenceRepository = alertPreferenceRepository;
+        this.teamRepository = teamRepository;
+        this.mlbTransactionService = mlbTransactionService;
+        this.rosterEventService = rosterEventService;
     }
 
     @GetMapping
@@ -35,57 +42,117 @@ public class FollowedTeamController {
     }
 
     @PostMapping
-    public ResponseEntity<?> followTeam(
-        @RequestBody FollowedTeam team
+    public FollowedTeam followTeam(
+        @RequestBody FollowedTeam followedTeam
     ) {
         boolean alreadyFollowing =
             followedTeamRepository.existsByLeagueAndName(
-                team.getLeague(),
-                team.getName()
+                followedTeam.getLeague(),
+                followedTeam.getName()
             );
 
         if (alreadyFollowing) {
-            return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(
-                    Map.of(
-                        "message",
-                        "Team is already being followed"
+            return followedTeamRepository
+                .findAll()
+                .stream()
+                .filter(team ->
+                    team.getLeague().equals(
+                        followedTeam.getLeague()
                     )
-                );
+                    &&
+                    team.getName().equals(
+                        followedTeam.getName()
+                    )
+                )
+                .findFirst()
+                .orElse(followedTeam);
         }
 
         FollowedTeam savedTeam =
-            followedTeamRepository.save(team);
+            followedTeamRepository.save(
+                followedTeam
+            );
 
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(savedTeam);
+        if ("MLB".equals(savedTeam.getLeague())) {
+            backfillMlbTransactions(savedTeam);
+        }
+
+        return savedTeam;
     }
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> unfollowTeam(
+    public void unfollowTeam(
         @PathVariable Long id
     ) {
-        if (!followedTeamRepository.existsById(id)) {
-            return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(
-                    Map.of(
-                        "message",
-                        "Followed team not found"
-                    )
-                );
-        }
-
         alertPreferenceRepository
             .deleteByFollowedTeamId(id);
 
-        followedTeamRepository.deleteById(id);
+        followedTeamRepository
+            .deleteById(id);
+    }
 
-        return ResponseEntity
-            .noContent()
-            .build();
+    private void backfillMlbTransactions(
+        FollowedTeam followedTeam
+    ) {
+        Team team =
+            teamRepository
+                .findByLeagueAndName(
+                    "MLB",
+                    followedTeam.getName()
+                )
+                .orElse(null);
+
+        if (
+            team == null ||
+            team.getExternalTeamId() == null
+        ) {
+            System.err.println(
+                "Could not backfill MLB transactions. "
+                + "No external team ID found for "
+                + followedTeam.getName()
+            );
+
+            return;
+        }
+
+        LocalDate endDate =
+            LocalDate.now();
+
+        LocalDate startDate =
+            endDate.minusDays(7);
+
+        try {
+            List<MlbTransactionEvent> events =
+                mlbTransactionService
+                    .getNormalizedTransactions(
+                        team.getExternalTeamId(),
+                        startDate.toString(),
+                        endDate.toString()
+                    );
+
+            List<RosterEvent> savedEvents =
+                rosterEventService
+                    .saveMlbEvents(
+                        team.getExternalTeamId(),
+                        events
+                    );
+
+            System.out.println(
+                "MLB backfill complete for "
+                + followedTeam.getName()
+                + ". Saved "
+                + savedEvents.size()
+                + " recent events."
+            );
+
+        } catch (Exception exception) {
+            System.err.println(
+                "MLB backfill failed for "
+                + followedTeam.getName()
+                + ": "
+                + exception.getMessage()
+            );
+        }
     }
 }
