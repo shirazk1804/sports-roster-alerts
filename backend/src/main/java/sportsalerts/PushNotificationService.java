@@ -1,6 +1,6 @@
 package sportsalerts;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -8,22 +8,37 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
 @Service
 public class PushNotificationService {
 
     private final PushTokenRepository
         pushTokenRepository;
 
-    private final RestClient
-        expoPushClient;
+    private final PushReceiptTicketRepository
+        pushReceiptTicketRepository;
+
+    private final RestClient restClient;
+
+    private final ObjectMapper objectMapper;
 
     public PushNotificationService(
-        PushTokenRepository pushTokenRepository
+        PushTokenRepository pushTokenRepository,
+        PushReceiptTicketRepository pushReceiptTicketRepository,
+        ObjectMapper objectMapper
     ) {
         this.pushTokenRepository =
             pushTokenRepository;
 
-        this.expoPushClient =
+        this.pushReceiptTicketRepository =
+            pushReceiptTicketRepository;
+
+        this.objectMapper =
+            objectMapper;
+
+        this.restClient =
             RestClient.create(
                 "https://exp.host"
             );
@@ -32,17 +47,36 @@ public class PushNotificationService {
     public void sendRosterEventNotification(
         RosterEvent event
     ) {
-        List<PushToken> tokens =
+        List<PushToken> pushTokens =
             pushTokenRepository.findAll();
 
-        for (PushToken token : tokens) {
+        for (PushToken pushToken : pushTokens) {
+
             try {
+                Map<String, Object> data =
+                    new HashMap<>();
+
+                data.put(
+                    "rosterEventId",
+                    event.getId()
+                );
+
+                data.put(
+                    "teamName",
+                    event.getTeamName()
+                );
+
+                data.put(
+                    "eventType",
+                    event.getEventType()
+                );
+
                 Map<String, Object> message =
-                    new LinkedHashMap<>();
+                    new HashMap<>();
 
                 message.put(
                     "to",
-                    token.getExpoPushToken()
+                    pushToken.getExpoPushToken()
                 );
 
                 message.put(
@@ -53,8 +87,8 @@ public class PushNotificationService {
                 message.put(
                     "title",
                     event.getTeamName()
-                    + ": "
-                    + event.getPlayerName()
+                        + ": "
+                        + event.getPlayerName()
                 );
 
                 message.put(
@@ -64,18 +98,11 @@ public class PushNotificationService {
 
                 message.put(
                     "data",
-                    Map.of(
-                        "rosterEventId",
-                        event.getId(),
-                        "teamName",
-                        event.getTeamName(),
-                        "eventType",
-                        event.getEventType()
-                    )
+                    data
                 );
 
                 String response =
-                    expoPushClient
+                    restClient
                         .post()
                         .uri(
                             "/--/api/v2/push/send"
@@ -87,21 +114,147 @@ public class PushNotificationService {
                         .retrieve()
                         .body(String.class);
 
-                System.out.println(
-                    "Push sent for "
-                    + event.getPlayerName()
-                    + ": "
-                    + response
+                handlePushTicket(
+                    response,
+                    pushToken
                 );
 
             } catch (Exception exception) {
+
                 System.err.println(
-                    "Push failed for "
-                    + event.getPlayerName()
-                    + ": "
+                    "Could not send push notification: "
                     + exception.getMessage()
                 );
             }
         }
+    }
+
+    private void handlePushTicket(
+        String response,
+        PushToken pushToken
+    ) throws Exception {
+
+        JsonNode root =
+            objectMapper.readTree(response);
+
+        JsonNode data =
+            root.get("data");
+
+        if (data == null) {
+            System.err.println(
+                "Expo push response did not contain a ticket."
+            );
+
+            return;
+        }
+
+        JsonNode ticket;
+
+        if (data.isArray()) {
+
+            if (data.size() == 0) {
+                return;
+            }
+
+            ticket =
+                data.get(0);
+
+        } else {
+            ticket =
+                data;
+        }
+
+        String status =
+            getText(
+                ticket,
+                "status"
+            );
+
+        if ("ok".equals(status)) {
+
+            String receiptId =
+                getText(
+                    ticket,
+                    "id"
+                );
+
+            if (!receiptId.isBlank()) {
+
+                pushReceiptTicketRepository.save(
+                    new PushReceiptTicket(
+                        receiptId,
+                        pushToken.getExpoPushToken()
+                    )
+                );
+
+                System.out.println(
+                    "Expo push accepted. "
+                    + "Receipt saved for later check."
+                );
+            }
+
+            return;
+        }
+
+        if ("error".equals(status)) {
+
+            String error =
+                getNestedError(ticket);
+
+            System.err.println(
+                "Expo push ticket error: "
+                + error
+            );
+
+            if (
+                "DeviceNotRegistered"
+                    .equals(error)
+            ) {
+                pushTokenRepository.delete(
+                    pushToken
+                );
+
+                System.out.println(
+                    "Removed invalid push token."
+                );
+            }
+        }
+    }
+
+    private String getNestedError(
+        JsonNode node
+    ) {
+        JsonNode details =
+            node.get("details");
+
+        if (details == null) {
+            return "";
+        }
+
+        return getText(
+            details,
+            "error"
+        );
+    }
+
+    private String getText(
+        JsonNode node,
+        String field
+    ) {
+        if (node == null) {
+            return "";
+        }
+
+        JsonNode value =
+            node.get(field);
+
+        if (
+            value == null ||
+            value.isNull()
+        ) {
+            return "";
+        }
+
+        return value.asString();
     }
 }
