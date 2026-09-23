@@ -15,7 +15,12 @@ public interface NflInjurySnapshotRepository
         );
 
     List<NflInjurySnapshot>
+        findByExternalProviderTeamId(
+            String externalProviderTeamId
+        );
+
+    List<NflInjurySnapshot>
         findByExternalProviderTeamIdOrderByPlayerNameAsc(
             String externalProviderTeamId
         );
-}   
+}

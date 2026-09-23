@@ -1,11 +1,13 @@
 package sportsalerts;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 @Component
 public class NflInjuryScheduler {
@@ -90,56 +92,42 @@ public class NflInjuryScheduler {
                         )
                     );
 
+        /*
+         * First determine the actual upcoming
+         * NFL week from the full schedule.
+         */
         NflWeekInfo currentWeek;
-        String rawInjuries;
 
         try {
-            /*
-             * Determine the current NFL season,
-             * season type, and week automatically.
-             */
             currentWeek =
                 nflInjuryService
-                    .getCurrentWeek();
-
-            /*
-             * Weekly Injuries is league-wide,
-             * so make one request and reuse it
-             * for every followed NFL team.
-             */
-            rawInjuries =
-                nflInjuryService
-                    .getWeeklyInjuries(
-                        currentWeek
-                    );
+                    .getUpcomingWeek();
 
         } catch (Exception exception) {
 
             System.err.println(
-                "NFL injury request failed: "
+                "Could not determine upcoming NFL week: "
                     + exception.getMessage()
             );
 
             return;
         }
 
-        int totalInjuriesSeen = 0;
-        int totalNewEvents = 0;
-        int totalNotifications = 0;
+        /*
+         * Resolve provider IDs once and clear
+         * stale snapshots BEFORE attempting to
+         * fetch this week's injury report.
+         */
+        Map<String, String>
+            providerTeamIdsByName =
+                new HashMap<>();
+
+        int staleSnapshotsRemoved = 0;
 
         for (
-            Map.Entry<
-                String,
-                List<FollowedTeam>
-            > entry :
-            followersByTeam.entrySet()
+            String teamName :
+            followersByTeam.keySet()
         ) {
-            String teamName =
-                entry.getKey();
-
-            List<FollowedTeam> followers =
-                entry.getValue();
-
             Team team =
                 teamRepository
                     .findByLeagueAndName(
@@ -166,6 +154,106 @@ public class NflInjuryScheduler {
             String providerTeamId =
                 team.getExternalProviderId();
 
+            providerTeamIdsByName.put(
+                teamName,
+                providerTeamId
+            );
+
+            try {
+                staleSnapshotsRemoved +=
+                    nflInjuryChangeService
+                        .clearStaleSnapshots(
+                            providerTeamId,
+                            currentWeek
+                        );
+
+            } catch (Exception exception) {
+
+                System.err.println(
+                    "Could not clear stale NFL injury snapshots for "
+                        + teamName
+                        + ": "
+                        + exception.getMessage()
+                );
+            }
+        }
+
+        /*
+         * Now try to fetch the upcoming week's
+         * injury report.
+         *
+         * If Sportradar has not published it yet,
+         * the old week's snapshots are already
+         * gone, so the app won't show stale data.
+         */
+        String rawInjuries;
+
+        try {
+            rawInjuries =
+                nflInjuryService
+                    .getWeeklyInjuries(
+                        currentWeek
+                    );
+
+        } catch (
+            HttpClientErrorException.NotFound exception
+        ) {
+            System.out.println(
+                "NFL injury report not available yet. "
+                    + "Season: "
+                    + currentWeek.seasonYear()
+                    + " "
+                    + currentWeek.seasonType()
+                    + " Week "
+                    + currentWeek.week()
+                    + ". Stale snapshots removed: "
+                    + staleSnapshotsRemoved
+            );
+
+            return;
+
+        } catch (Exception exception) {
+
+            System.err.println(
+                "NFL injury request failed for "
+                    + currentWeek.seasonYear()
+                    + " "
+                    + currentWeek.seasonType()
+                    + " Week "
+                    + currentWeek.week()
+                    + ": "
+                    + exception.getMessage()
+            );
+
+            return;
+        }
+
+        int totalInjuriesSeen = 0;
+        int totalNewEvents = 0;
+        int totalNotifications = 0;
+
+        for (
+            Map.Entry<
+                String,
+                List<FollowedTeam>
+            > entry :
+            followersByTeam.entrySet()
+        ) {
+            String teamName =
+                entry.getKey();
+
+            List<FollowedTeam> followers =
+                entry.getValue();
+
+            String providerTeamId =
+                providerTeamIdsByName.get(
+                    teamName
+                );
+
+            if (providerTeamId == null) {
+                continue;
+            }
+
             try {
                 List<NflInjuryEvent> injuries =
                     nflInjuryService
@@ -178,16 +266,18 @@ public class NflInjuryScheduler {
                     injuries.size();
 
                 /*
-                 * First-ever observations become
-                 * silent baselines.
+                 * First observations for the
+                 * upcoming week become silent
+                 * baselines.
                  *
-                 * Only actual changes return
-                 * RosterEvents.
+                 * Only later status changes
+                 * create RosterEvents.
                  */
                 List<RosterEvent> newEvents =
                     nflInjuryChangeService
                         .processTeamInjuries(
                             providerTeamId,
+                            currentWeek,
                             injuries
                         );
 
@@ -256,6 +346,8 @@ public class NflInjuryScheduler {
                 + followersByTeam.size()
                 + ". Injuries seen: "
                 + totalInjuriesSeen
+                + ". Stale snapshots removed: "
+                + staleSnapshotsRemoved
                 + ". New events: "
                 + totalNewEvents
                 + ". Notifications sent: "

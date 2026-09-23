@@ -32,13 +32,46 @@ public class NflInjuryChangeService {
             rosterEventRepository;
     }
 
+    /*
+     * Clear snapshots belonging to an older
+     * NFL week.
+     *
+     * The scheduler calls this BEFORE trying
+     * to fetch the new week's injury report.
+     *
+     * That way, if Week 3 has no report yet,
+     * Week 2 data does not remain visible as
+     * though it were current.
+     */
+    @Transactional
+    public int clearStaleSnapshots(
+        String externalProviderTeamId,
+        NflWeekInfo week
+    ) {
+        return clearStaleSnapshotsInternal(
+            externalProviderTeamId,
+            week
+        );
+    }
+
     @Transactional
     public List<RosterEvent> processTeamInjuries(
         String externalProviderTeamId,
+        NflWeekInfo week,
         List<NflInjuryEvent> injuries
     ) {
         List<RosterEvent> newEvents =
             new ArrayList<>();
+
+        /*
+         * Keep this here as a second layer of
+         * protection in case this method is ever
+         * called somewhere besides the scheduler.
+         */
+        clearStaleSnapshotsInternal(
+            externalProviderTeamId,
+            week
+        );
 
         for (
             NflInjuryEvent injury :
@@ -58,11 +91,11 @@ public class NflInjuryChangeService {
                         );
 
             /*
-             * First time we've ever seen this
-             * player's injury state.
+             * First observation for this player
+             * during this NFL week.
              *
-             * Save it as the baseline, but do
-             * NOT create an alert.
+             * Save as baseline without generating
+             * an alert.
              */
             if (existingSnapshot.isEmpty()) {
 
@@ -72,6 +105,9 @@ public class NflInjuryChangeService {
                         injury.teamName(),
                         injury.playerProviderId(),
                         injury.playerName(),
+                        week.seasonYear(),
+                        week.seasonType(),
+                        week.week(),
                         injury.injury(),
                         injury.secondaryInjury(),
                         injury.gameStatus(),
@@ -92,7 +128,7 @@ public class NflInjuryChangeService {
                 existingSnapshot.get();
 
             /*
-             * Nothing meaningful changed.
+             * Injury state is unchanged.
              */
             if (
                 stateHash.equals(
@@ -121,12 +157,6 @@ public class NflInjuryChangeService {
                         dedupeKey
                     );
 
-            /*
-             * Update the snapshot regardless.
-             *
-             * This ensures the stored snapshot
-             * always represents the latest state.
-             */
             snapshot.update(
                 injury.teamName(),
                 injury.playerName(),
@@ -152,14 +182,6 @@ public class NflInjuryChangeService {
                     injury.statusDate()
                 );
 
-            /*
-             * The injury feed does not give us a
-             * transaction GUID like the transaction
-             * feed does.
-             *
-             * Use the state hash as a stable
-             * provider-side event identifier.
-             */
             String sourceProviderEventId =
                 "injury-"
                     + stateHash;
@@ -191,13 +213,59 @@ public class NflInjuryChangeService {
         return newEvents;
     }
 
+    private int clearStaleSnapshotsInternal(
+        String externalProviderTeamId,
+        NflWeekInfo week
+    ) {
+        List<NflInjurySnapshot>
+            existingSnapshots =
+                snapshotRepository
+                    .findByExternalProviderTeamId(
+                        externalProviderTeamId
+                    );
+
+        int removed = 0;
+
+        for (
+            NflInjurySnapshot snapshot :
+            existingSnapshots
+        ) {
+            boolean sameWeek =
+                snapshot.getSeasonYear()
+                    != null
+                &&
+                snapshot.getSeasonYear()
+                    == week.seasonYear()
+                &&
+                week.seasonType().equals(
+                    snapshot.getSeasonType()
+                )
+                &&
+                snapshot.getWeekNumber()
+                    != null
+                &&
+                snapshot.getWeekNumber()
+                    == week.week();
+
+            if (!sameWeek) {
+                snapshotRepository.delete(
+                    snapshot
+                );
+
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
     private String createStateHash(
         NflInjuryEvent injury
     ) {
         /*
-         * statusDate is intentionally NOT included.
+         * statusDate is intentionally excluded.
          *
-         * A provider timestamp/date changing by
+         * A provider date/timestamp changing by
          * itself should not create an alert.
          */
         String rawState =

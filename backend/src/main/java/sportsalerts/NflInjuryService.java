@@ -1,5 +1,7 @@
 package sportsalerts;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,7 +39,19 @@ public class NflInjuryService {
             );
     }
 
-    public NflWeekInfo getCurrentWeek() {
+    /*
+     * Do NOT use Sportradar's current_week
+     * endpoint here.
+     *
+     * That endpoint can remain on the previous
+     * NFL week until a game in the next week
+     * reaches "created" status.
+     *
+     * Instead, load the full current-season
+     * schedule and find the week containing
+     * the next scheduled NFL game.
+     */
+    public NflWeekInfo getUpcomingWeek() {
 
         ensureApiKey();
 
@@ -45,7 +59,7 @@ public class NflInjuryService {
             restClient
                 .get()
                 .uri(
-                    "/nfl/official/trial/v7/en/games/current_week/schedule.json"
+                    "/nfl/official/trial/v7/en/games/current_season/schedule.json"
                 )
                 .header(
                     "x-api-key",
@@ -63,38 +77,157 @@ public class NflInjuryService {
                     response
                 );
 
-            int seasonYear =
-                root.get("year")
-                    .asInt();
+            JsonNode yearNode =
+                root.get("year");
 
-            String seasonType =
-                root.get("type")
-                    .asString();
+            JsonNode typeNode =
+                root.get("type");
 
-            JsonNode weekNode =
-                root.get("week");
+            JsonNode weeks =
+                root.get("weeks");
 
-            if (weekNode == null) {
+            if (
+                yearNode == null ||
+                typeNode == null ||
+                weeks == null ||
+                !weeks.isArray()
+            ) {
                 throw new IllegalStateException(
-                    "Current NFL schedule did not contain week information"
+                    "Current NFL season schedule was missing season/week information"
                 );
             }
 
-            int week =
-                weekNode
-                    .get("sequence")
-                    .asInt();
+            int seasonYear =
+                yearNode.asInt();
+
+            String seasonType =
+                typeNode.asString();
+
+            Instant now =
+                Instant.now();
+
+            Instant earliestGameTime =
+                null;
+
+            Integer upcomingWeek =
+                null;
+
+            for (
+                JsonNode week :
+                weeks
+            ) {
+                JsonNode sequenceNode =
+                    week.get(
+                        "sequence"
+                    );
+
+                JsonNode games =
+                    week.get(
+                        "games"
+                    );
+
+                if (
+                    sequenceNode == null ||
+                    games == null ||
+                    !games.isArray()
+                ) {
+                    continue;
+                }
+
+                int weekNumber =
+                    sequenceNode.asInt();
+
+                for (
+                    JsonNode game :
+                    games
+                ) {
+                    String scheduled =
+                        getText(
+                            game,
+                            "scheduled"
+                        );
+
+                    if (scheduled.isBlank()) {
+                        continue;
+                    }
+
+                    String status =
+                        getText(
+                            game,
+                            "status"
+                        );
+
+                    /*
+                     * Ignore games that will
+                     * never be played.
+                     */
+                    if (
+                        "cancelled".equalsIgnoreCase(
+                            status
+                        ) ||
+                        "canceled".equalsIgnoreCase(
+                            status
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    Instant gameTime;
+
+                    try {
+                        gameTime =
+                            OffsetDateTime
+                                .parse(
+                                    scheduled
+                                )
+                                .toInstant();
+
+                    } catch (
+                        Exception ignored
+                    ) {
+                        continue;
+                    }
+
+                    if (
+                        !gameTime.isAfter(
+                            now
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    if (
+                        earliestGameTime
+                            == null ||
+                        gameTime.isBefore(
+                            earliestGameTime
+                        )
+                    ) {
+                        earliestGameTime =
+                            gameTime;
+
+                        upcomingWeek =
+                            weekNumber;
+                    }
+                }
+            }
+
+            if (upcomingWeek == null) {
+                throw new IllegalStateException(
+                    "No upcoming NFL game was found in the current season schedule"
+                );
+            }
 
             return new NflWeekInfo(
                 seasonYear,
                 seasonType,
-                week
+                upcomingWeek
             );
 
         } catch (Exception exception) {
 
             throw new RuntimeException(
-                "Could not determine current NFL week",
+                "Could not determine upcoming NFL week",
                 exception
             );
         }
@@ -153,8 +286,10 @@ public class NflInjuryService {
                 return events;
             }
 
-            for (JsonNode team : teams) {
-
+            for (
+                JsonNode team :
+                teams
+            ) {
                 String teamId =
                     getText(
                         team,
@@ -163,7 +298,9 @@ public class NflInjuryService {
 
                 if (
                     !externalProviderTeamId
-                        .equals(teamId)
+                        .equals(
+                            teamId
+                        )
                 ) {
                     continue;
                 }
@@ -181,11 +318,16 @@ public class NflInjuryService {
                     );
 
                 String teamName =
-                    (market + " " + name)
-                        .trim();
+                    (
+                        market
+                            + " "
+                            + name
+                    ).trim();
 
                 JsonNode players =
-                    team.get("players");
+                    team.get(
+                        "players"
+                    );
 
                 if (
                     players == null ||
@@ -376,7 +518,9 @@ public class NflInjuryService {
         }
 
         JsonNode value =
-            node.get(field);
+            node.get(
+                field
+            );
 
         if (
             value == null ||

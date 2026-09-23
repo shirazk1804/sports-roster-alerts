@@ -58,6 +58,22 @@ public class NflInjurySnapshot {
     private String playerName;
 
     @Column(
+        name = "season_year"
+    )
+    private Integer seasonYear;
+
+    @Column(
+        name = "season_type",
+        length = 20
+    )
+    private String seasonType;
+
+    @Column(
+        name = "week_number"
+    )
+    private Integer weekNumber;
+
+    @Column(
         name = "injury"
     )
     private String injury;
@@ -107,6 +123,9 @@ public class NflInjurySnapshot {
         String teamName,
         String playerProviderId,
         String playerName,
+        int seasonYear,
+        String seasonType,
+        int weekNumber,
         String injury,
         String secondaryInjury,
         String gameStatus,
@@ -126,6 +145,15 @@ public class NflInjurySnapshot {
 
         this.playerName =
             playerName;
+
+        this.seasonYear =
+            seasonYear;
+
+        this.seasonType =
+            seasonType;
+
+        this.weekNumber =
+            weekNumber;
 
         this.injury =
             injury;
@@ -172,6 +200,18 @@ public class NflInjurySnapshot {
 
     public String getPlayerName() {
         return playerName;
+    }
+
+    public Integer getSeasonYear() {
+        return seasonYear;
+    }
+
+    public String getSeasonType() {
+        return seasonType;
+    }
+
+    public Integer getWeekNumber() {
+        return weekNumber;
     }
 
     public String getInjury() {
