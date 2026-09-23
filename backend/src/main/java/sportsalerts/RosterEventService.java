@@ -240,6 +240,9 @@ public class RosterEventService {
 
             return switch (eventType) {
 
+                case "INJURY_STATUS_CHANGE" ->
+                    "Injury status changes";
+
                 case "INJURED_RESERVE",
                         "IR_DESIGNATED_RETURN",
                         "PUP_PLACEMENT",
