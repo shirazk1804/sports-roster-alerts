@@ -3,6 +3,7 @@ package sportsalerts;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -15,60 +16,47 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RosterEventService {
 
-    private final RosterEventRepository
-        rosterEventRepository;
+    private final RosterEventRepository rosterEventRepository;
 
-    private final FollowedTeamRepository
-        followedTeamRepository;
+    private final FollowedTeamRepository followedTeamRepository;
 
-    private final AlertPreferenceRepository
-        alertPreferenceRepository;
+    private final AlertPreferenceRepository alertPreferenceRepository;
 
     public RosterEventService(
-        RosterEventRepository rosterEventRepository,
-        FollowedTeamRepository followedTeamRepository,
-        AlertPreferenceRepository alertPreferenceRepository
-    ) {
-        this.rosterEventRepository =
-            rosterEventRepository;
+            RosterEventRepository rosterEventRepository,
+            FollowedTeamRepository followedTeamRepository,
+            AlertPreferenceRepository alertPreferenceRepository) {
+        this.rosterEventRepository = rosterEventRepository;
 
-        this.followedTeamRepository =
-            followedTeamRepository;
+        this.followedTeamRepository = followedTeamRepository;
 
-        this.alertPreferenceRepository =
-            alertPreferenceRepository;
+        this.alertPreferenceRepository = alertPreferenceRepository;
     }
+
+    // =========================
+    // MLB
+    // =========================
 
     @Transactional
     public List<RosterEvent> saveMlbEvents(
-        Long teamId,
-        List<MlbTransactionEvent> events
-    ) {
-        List<RosterEvent> savedEvents =
-            new ArrayList<>();
+            Long teamId,
+            List<MlbTransactionEvent> events) {
+        List<RosterEvent> savedEvents = new ArrayList<>();
 
-        for (
-            MlbTransactionEvent event :
-            events
-        ) {
-            String dedupeKey =
-                createDedupeKey(
+        for (MlbTransactionEvent event : events) {
+            String dedupeKey = createMlbDedupeKey(
                     teamId,
-                    event
-                );
+                    event);
 
-            boolean alreadyExists =
-                rosterEventRepository
+            boolean alreadyExists = rosterEventRepository
                     .existsByDedupeKey(
-                        dedupeKey
-                    );
+                            dedupeKey);
 
             if (alreadyExists) {
                 continue;
             }
 
-            RosterEvent rosterEvent =
-                new RosterEvent(
+            RosterEvent rosterEvent = new RosterEvent(
                     "MLB",
                     teamId,
                     event.teamName(),
@@ -77,225 +65,280 @@ public class RosterEventService {
                     event.playerName(),
                     event.eventType(),
                     LocalDate.parse(
-                        event.date()
-                    ),
+                            event.date()),
                     event.description(),
-                    dedupeKey
-                );
+                    dedupeKey);
 
-            RosterEvent saved =
-                rosterEventRepository.save(
-                    rosterEvent
-                );
+            RosterEvent saved = rosterEventRepository.save(
+                    rosterEvent);
 
             savedEvents.add(
-                saved
-            );
+                    saved);
         }
 
         return savedEvents;
     }
 
-    public List<RosterEvent>
-        getVisibleEventsForUser(
-            Long appUserId
-        ) {
+    // =========================
+    // NFL
+    // =========================
 
-        List<FollowedTeam> followedTeams =
-            followedTeamRepository
+    @Transactional
+    public List<RosterEvent> saveNflEvents(
+            String externalProviderTeamId,
+            List<NflTransactionEvent> events) {
+        List<RosterEvent> savedEvents = new ArrayList<>();
+
+        for (NflTransactionEvent event : events) {
+            String dedupeKey = createNflDedupeKey(
+                    externalProviderTeamId,
+                    event);
+
+            boolean alreadyExists = rosterEventRepository
+                    .existsByDedupeKey(
+                            dedupeKey);
+
+            if (alreadyExists) {
+                continue;
+            }
+
+            LocalDate eventDate = parseProviderDate(
+                    event.effectiveDate());
+
+            RosterEvent rosterEvent = new RosterEvent(
+                    "NFL",
+                    externalProviderTeamId,
+                    event.teamName(),
+                    event.sourceProviderEventId(),
+                    event.playerProviderId(),
+                    event.playerName(),
+                    event.eventType(),
+                    eventDate,
+                    event.description(),
+                    dedupeKey);
+
+            RosterEvent saved = rosterEventRepository.save(
+                    rosterEvent);
+
+            savedEvents.add(
+                    saved);
+        }
+
+        return savedEvents;
+    }
+
+    // =========================
+    // USER VISIBLE EVENTS
+    // =========================
+
+    public List<RosterEvent> getVisibleEventsForUser(
+            Long appUserId) {
+
+        List<FollowedTeam> followedTeams = followedTeamRepository
                 .findByAppUserId(
-                    appUserId
-                );
+                        appUserId);
 
         if (followedTeams.isEmpty()) {
             return List.of();
         }
 
         /*
-         * Map each followed MLB team name
-         * to this user's FollowedTeam row.
+         * Key format:
          *
-         * Example:
+         * MLB|Los Angeles Dodgers
+         * NFL|Los Angeles Rams
          *
-         * "Los Angeles Dodgers"
-         *      -> User 1's Dodgers follow
+         * This prevents teams in different
+         * leagues from ever colliding.
          */
-        Map<String, FollowedTeam>
-            followedMlbTeamsByName =
-                followedTeams
-                    .stream()
-                    .filter(
-                        team ->
-                            "MLB".equals(
-                                team.getLeague()
-                            )
-                    )
-                    .collect(
+        Map<String, FollowedTeam> followedTeamsByLeagueAndName = followedTeams
+                .stream()
+                .collect(
                         Collectors.toMap(
-                            FollowedTeam::getName,
-                            team -> team
-                        )
-                    );
+                                team -> buildTeamKey(
+                                        team.getLeague(),
+                                        team.getName()),
+                                team -> team));
 
-        if (
-            followedMlbTeamsByName
-                .isEmpty()
-        ) {
-            return List.of();
-        }
-
-        List<RosterEvent> allEvents =
-            rosterEventRepository
+        List<RosterEvent> allEvents = rosterEventRepository
                 .findAllByOrderByEventDateDescIdDesc();
 
-        List<RosterEvent> visibleEvents =
-            new ArrayList<>();
+        List<RosterEvent> visibleEvents = new ArrayList<>();
 
-        for (
-            RosterEvent event :
-            allEvents
-        ) {
-            if (
-                !"MLB".equals(
-                    event.getLeague()
-                )
-            ) {
-                continue;
-            }
+        for (RosterEvent event : allEvents) {
+            String eventKey = buildTeamKey(
+                    event.getLeague(),
+                    event.getTeamName());
 
-            FollowedTeam followedTeam =
-                followedMlbTeamsByName.get(
-                    event.getTeamName()
-                );
+            FollowedTeam followedTeam = followedTeamsByLeagueAndName
+                    .get(eventKey);
 
             if (followedTeam == null) {
                 continue;
             }
 
-            if (
-                shouldNotify(
+            if (shouldNotify(
                     followedTeam,
-                    event
-                )
-            ) {
+                    event)) {
                 visibleEvents.add(
-                    event
-                );
+                        event);
             }
         }
 
         return visibleEvents;
     }
 
+    // =========================
+    // ALERT PREFERENCES
+    // =========================
+
     public boolean shouldNotify(
-        FollowedTeam followedTeam,
-        RosterEvent event
-    ) {
-        List<AlertPreference> preferences =
-            alertPreferenceRepository
+            FollowedTeam followedTeam,
+            RosterEvent event) {
+        List<AlertPreference> preferences = alertPreferenceRepository
                 .findByFollowedTeamId(
-                    followedTeam.getId()
-                );
+                        followedTeam.getId());
 
         if (preferences.isEmpty()) {
             return true;
         }
 
-        Map<String, Boolean>
-            preferenceMap =
-                preferences
-                    .stream()
-                    .collect(
+        Map<String, Boolean> preferenceMap = preferences
+                .stream()
+                .collect(
                         Collectors.toMap(
-                            AlertPreference
-                                ::getAlertKey,
-                            AlertPreference
-                                ::isEnabled
-                        )
-                    );
+                                AlertPreference::getAlertKey,
+                                AlertPreference::isEnabled));
 
-        String preferenceKey =
-            getPreferenceKey(
-                event.getEventType()
-            );
+        String preferenceKey = getPreferenceKey(
+                event.getLeague(),
+                event.getEventType());
 
+        /*
+         * We intentionally allow unknown event
+         * types for now instead of silently
+         * suppressing them.
+         *
+         * Once we inspect the exact NFL preference
+         * names in the mobile app, we'll map every
+         * NFL event type to its correct switch.
+         */
         if (preferenceKey == null) {
             return true;
         }
 
         return preferenceMap.getOrDefault(
-            preferenceKey,
-            true
-        );
+                preferenceKey,
+                true);
     }
 
     private String getPreferenceKey(
-        String eventType
-    ) {
-        return switch (eventType) {
+            String league,
+            String eventType) {
 
-            case "IL_PLACEMENT" ->
-                "IL placements";
+        if ("NFL".equals(league)) {
 
-            case "IL_ACTIVATION" ->
-                "IL activations";
+            return switch (eventType) {
 
-            case "IL_TRANSFER" ->
-                "IL placements";
+                case "INJURED_RESERVE",
+                        "IR_DESIGNATED_RETURN",
+                        "PUP_PLACEMENT",
+                        "NFI_PLACEMENT" ->
+                    "IR / PUP moves";
 
-            case "RECALLED" ->
-                "Call-ups";
+                case "ACTIVATED" ->
+                    "Activations";
 
-            case "OPTIONED" ->
-                "Options to minors";
+                case "SIGNED",
+                        "RELEASED",
+                        "WAIVED",
+                        "RETIRED" ->
+                    "Signings and releases";
 
-            case "DESIGNATED_FOR_ASSIGNMENT" ->
-                "Designated for assignment";
+                case "TRADE" ->
+                    "Trades";
 
-            case "TRADE" ->
-                "Trades";
+                case "PRACTICE_SQUAD" ->
+                    "Practice squad moves";
 
-            case "CONTRACT_SELECTED" ->
-                "Call-ups";
+                case "SUSPENDED",
+                        "SUSPENSION_REINSTATED" ->
+                    "Suspensions";
 
-            case "OUTRIGHTED" ->
-                "Options to minors";
+                default ->
+                    null;
+            };
+        }
 
-            case "REHAB_ASSIGNMENT" ->
-                "Injury status changes";
+        if ("MLB".equals(league)) {
 
-            case "BEREAVEMENT_PLACEMENT",
-                 "BEREAVEMENT_ACTIVATION",
-                 "PATERNITY_PLACEMENT",
-                 "PATERNITY_ACTIVATION",
-                 "RESTRICTED_LIST_PLACEMENT",
-                 "RESTRICTED_LIST_ACTIVATION",
-                 "SUSPENDED",
-                 "SUSPENSION_REINSTATED",
-                 "ROSTER_ACTIVATION"
-                ->
-                "Injury status changes";
+            return switch (eventType) {
 
-            case "RELEASED",
-                 "SIGNED",
-                 "MINOR_LEAGUE_SIGNING",
-                 "WAIVER_CLAIM",
-                 "WAIVERS",
-                 "RETIRED"
-                ->
-                "Signings and releases";
+                case "IL_PLACEMENT" ->
+                    "IL placements";
 
-            default ->
-                null;
-        };
+                case "IL_ACTIVATION" ->
+                    "IL activations";
+
+                case "IL_TRANSFER" ->
+                    "IL placements";
+
+                case "RECALLED" ->
+                    "Call-ups";
+
+                case "OPTIONED" ->
+                    "Options to minors";
+
+                case "DESIGNATED_FOR_ASSIGNMENT" ->
+                    "Designated for assignment";
+
+                case "TRADE" ->
+                    "Trades";
+
+                case "CONTRACT_SELECTED" ->
+                    "Call-ups";
+
+                case "OUTRIGHTED" ->
+                    "Options to minors";
+
+                case "REHAB_ASSIGNMENT" ->
+                    "Injury status changes";
+
+                case "BEREAVEMENT_PLACEMENT",
+                        "BEREAVEMENT_ACTIVATION",
+                        "PATERNITY_PLACEMENT",
+                        "PATERNITY_ACTIVATION",
+                        "RESTRICTED_LIST_PLACEMENT",
+                        "RESTRICTED_LIST_ACTIVATION",
+                        "SUSPENDED",
+                        "SUSPENSION_REINSTATED",
+                        "ROSTER_ACTIVATION" ->
+                    "Injury status changes";
+
+                case "RELEASED",
+                        "SIGNED",
+                        "MINOR_LEAGUE_SIGNING",
+                        "WAIVER_CLAIM",
+                        "WAIVERS",
+                        "RETIRED" ->
+                    "Signings and releases";
+
+                default ->
+                    null;
+            };
+        }
+
+        return null;
     }
 
-    private String createDedupeKey(
-        Long teamId,
-        MlbTransactionEvent event
-    ) {
-        String rawKey =
-            teamId
+    // =========================
+    // DEDUPLICATION
+    // =========================
+
+    private String createMlbDedupeKey(
+            Long teamId,
+            MlbTransactionEvent event) {
+        String rawKey = teamId
                 + "|"
                 + event.playerId()
                 + "|"
@@ -305,29 +348,91 @@ public class RosterEventService {
                 + "|"
                 + event.description();
 
-        try {
-            MessageDigest digest =
-                MessageDigest.getInstance(
-                    "SHA-256"
-                );
+        return sha256(
+                rawKey);
+    }
 
-            byte[] hash =
-                digest.digest(
+    private String createNflDedupeKey(
+            String externalProviderTeamId,
+            NflTransactionEvent event) {
+        String rawKey = "NFL"
+                + "|"
+                + externalProviderTeamId
+                + "|"
+                + event.sourceProviderEventId()
+                + "|"
+                + event.playerProviderId()
+                + "|"
+                + event.eventType()
+                + "|"
+                + event.effectiveDate()
+                + "|"
+                + event.description();
+
+        return sha256(
+                rawKey);
+    }
+
+    private String sha256(
+            String rawKey) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance(
+                    "SHA-256");
+
+            byte[] hash = digest.digest(
                     rawKey.getBytes(
-                        StandardCharsets.UTF_8
-                    )
-                );
+                            StandardCharsets.UTF_8));
 
             return HexFormat
-                .of()
-                .formatHex(hash);
+                    .of()
+                    .formatHex(
+                            hash);
 
         } catch (Exception exception) {
 
             throw new RuntimeException(
-                "Could not create event dedupe key",
-                exception
-            );
+                    "Could not create event dedupe key",
+                    exception);
         }
+    }
+
+    // =========================
+    // HELPERS
+    // =========================
+
+    private LocalDate parseProviderDate(
+            String value) {
+        if (value == null ||
+                value.isBlank()) {
+            return LocalDate.now(
+                    ZoneOffset.UTC);
+        }
+
+        /*
+         * Handles either:
+         *
+         * 2026-09-23
+         *
+         * or timestamps beginning with:
+         *
+         * 2026-09-23T...
+         */
+        if (value.length() >= 10) {
+            return LocalDate.parse(
+                    value.substring(
+                            0,
+                            10));
+        }
+
+        return LocalDate.now(
+                ZoneOffset.UTC);
+    }
+
+    private String buildTeamKey(
+            String league,
+            String teamName) {
+        return league
+                + "|"
+                + teamName;
     }
 }
