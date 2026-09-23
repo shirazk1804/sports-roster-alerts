@@ -20,58 +20,394 @@ public class TeamDataLoader
     @Override
     public void run(String... args) {
 
-        // Existing NFL / NBA prototype teams
+        // NFL teams
 
-        upsertTeam(
+        upsertProviderTeam(
             "NFL",
-            "Los Angeles Rams",
-            "LAR",
-            null
+            "Arizona Cardinals",
+            "ARI"
         );
 
-        upsertTeam(
+        upsertProviderTeam(
+            "NFL",
+            "Atlanta Falcons",
+            "ATL"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Baltimore Ravens",
+            "BAL"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Buffalo Bills",
+            "BUF"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Carolina Panthers",
+            "CAR"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Chicago Bears",
+            "CHI"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Cincinnati Bengals",
+            "CIN"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Cleveland Browns",
+            "CLE"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Dallas Cowboys",
+            "DAL"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Denver Broncos",
+            "DEN"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Detroit Lions",
+            "DET"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Green Bay Packers",
+            "GB"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Houston Texans",
+            "HOU"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Indianapolis Colts",
+            "IND"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Jacksonville Jaguars",
+            "JAC"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Kansas City Chiefs",
+            "KC"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Las Vegas Raiders",
+            "LV"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Los Angeles Chargers",
+            "LAC"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Los Angeles Rams",
+            "LAR"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Miami Dolphins",
+            "MIA"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Minnesota Vikings",
+            "MIN"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "New England Patriots",
+            "NE"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "New Orleans Saints",
+            "NO"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "New York Giants",
+            "NYG"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "New York Jets",
+            "NYJ"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Philadelphia Eagles",
+            "PHI"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Pittsburgh Steelers",
+            "PIT"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "San Francisco 49ers",
+            "SF"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Seattle Seahawks",
+            "SEA"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Tampa Bay Buccaneers",
+            "TB"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Tennessee Titans",
+            "TEN"
+        );
+
+        upsertProviderTeam(
+            "NFL",
+            "Washington Commanders",
+            "WAS"
+        );
+
+        // NBA prototype.
+        // We'll add the full NBA catalog
+        // when we start the NBA integration.
+
+        upsertProviderTeam(
             "NBA",
             "Los Angeles Lakers",
-            "LAL",
-            null
+            "LAL"
         );
 
         // MLB teams
 
-        upsertTeam("MLB", "Los Angeles Angels", "LAA", 108L);
-        upsertTeam("MLB", "Arizona Diamondbacks", "ARI", 109L);
-        upsertTeam("MLB", "Baltimore Orioles", "BAL", 110L);
-        upsertTeam("MLB", "Boston Red Sox", "BOS", 111L);
-        upsertTeam("MLB", "Chicago Cubs", "CHC", 112L);
-        upsertTeam("MLB", "Cincinnati Reds", "CIN", 113L);
-        upsertTeam("MLB", "Cleveland Guardians", "CLE", 114L);
-        upsertTeam("MLB", "Colorado Rockies", "COL", 115L);
-        upsertTeam("MLB", "Detroit Tigers", "DET", 116L);
-        upsertTeam("MLB", "Houston Astros", "HOU", 117L);
-        upsertTeam("MLB", "Kansas City Royals", "KC", 118L);
-        upsertTeam("MLB", "Los Angeles Dodgers", "LAD", 119L);
-        upsertTeam("MLB", "Washington Nationals", "WSH", 120L);
-        upsertTeam("MLB", "New York Mets", "NYM", 121L);
-        upsertTeam("MLB", "Athletics", "ATH", 133L);
-        upsertTeam("MLB", "Pittsburgh Pirates", "PIT", 134L);
-        upsertTeam("MLB", "San Diego Padres", "SD", 135L);
-        upsertTeam("MLB", "Seattle Mariners", "SEA", 136L);
-        upsertTeam("MLB", "San Francisco Giants", "SF", 137L);
-        upsertTeam("MLB", "St. Louis Cardinals", "STL", 138L);
-        upsertTeam("MLB", "Tampa Bay Rays", "TB", 139L);
-        upsertTeam("MLB", "Texas Rangers", "TEX", 140L);
-        upsertTeam("MLB", "Toronto Blue Jays", "TOR", 141L);
-        upsertTeam("MLB", "Minnesota Twins", "MIN", 142L);
-        upsertTeam("MLB", "Philadelphia Phillies", "PHI", 143L);
-        upsertTeam("MLB", "Atlanta Braves", "ATL", 144L);
-        upsertTeam("MLB", "Chicago White Sox", "CWS", 145L);
-        upsertTeam("MLB", "Miami Marlins", "MIA", 146L);
-        upsertTeam("MLB", "New York Yankees", "NYY", 147L);
-        upsertTeam("MLB", "Milwaukee Brewers", "MIL", 158L);
+        upsertMlbTeam(
+            "Los Angeles Angels",
+            "LAA",
+            108L
+        );
+
+        upsertMlbTeam(
+            "Arizona Diamondbacks",
+            "ARI",
+            109L
+        );
+
+        upsertMlbTeam(
+            "Baltimore Orioles",
+            "BAL",
+            110L
+        );
+
+        upsertMlbTeam(
+            "Boston Red Sox",
+            "BOS",
+            111L
+        );
+
+        upsertMlbTeam(
+            "Chicago Cubs",
+            "CHC",
+            112L
+        );
+
+        upsertMlbTeam(
+            "Cincinnati Reds",
+            "CIN",
+            113L
+        );
+
+        upsertMlbTeam(
+            "Cleveland Guardians",
+            "CLE",
+            114L
+        );
+
+        upsertMlbTeam(
+            "Colorado Rockies",
+            "COL",
+            115L
+        );
+
+        upsertMlbTeam(
+            "Detroit Tigers",
+            "DET",
+            116L
+        );
+
+        upsertMlbTeam(
+            "Houston Astros",
+            "HOU",
+            117L
+        );
+
+        upsertMlbTeam(
+            "Kansas City Royals",
+            "KC",
+            118L
+        );
+
+        upsertMlbTeam(
+            "Los Angeles Dodgers",
+            "LAD",
+            119L
+        );
+
+        upsertMlbTeam(
+            "Washington Nationals",
+            "WSH",
+            120L
+        );
+
+        upsertMlbTeam(
+            "New York Mets",
+            "NYM",
+            121L
+        );
+
+        upsertMlbTeam(
+            "Athletics",
+            "ATH",
+            133L
+        );
+
+        upsertMlbTeam(
+            "Pittsburgh Pirates",
+            "PIT",
+            134L
+        );
+
+        upsertMlbTeam(
+            "San Diego Padres",
+            "SD",
+            135L
+        );
+
+        upsertMlbTeam(
+            "Seattle Mariners",
+            "SEA",
+            136L
+        );
+
+        upsertMlbTeam(
+            "San Francisco Giants",
+            "SF",
+            137L
+        );
+
+        upsertMlbTeam(
+            "St. Louis Cardinals",
+            "STL",
+            138L
+        );
+
+        upsertMlbTeam(
+            "Tampa Bay Rays",
+            "TB",
+            139L
+        );
+
+        upsertMlbTeam(
+            "Texas Rangers",
+            "TEX",
+            140L
+        );
+
+        upsertMlbTeam(
+            "Toronto Blue Jays",
+            "TOR",
+            141L
+        );
+
+        upsertMlbTeam(
+            "Minnesota Twins",
+            "MIN",
+            142L
+        );
+
+        upsertMlbTeam(
+            "Philadelphia Phillies",
+            "PHI",
+            143L
+        );
+
+        upsertMlbTeam(
+            "Atlanta Braves",
+            "ATL",
+            144L
+        );
+
+        upsertMlbTeam(
+            "Chicago White Sox",
+            "CWS",
+            145L
+        );
+
+        upsertMlbTeam(
+            "Miami Marlins",
+            "MIA",
+            146L
+        );
+
+        upsertMlbTeam(
+            "New York Yankees",
+            "NYY",
+            147L
+        );
+
+        upsertMlbTeam(
+            "Milwaukee Brewers",
+            "MIL",
+            158L
+        );
     }
 
-    private void upsertTeam(
-        String league,
+    private void upsertMlbTeam(
         String name,
         String abbreviation,
         Long externalTeamId
@@ -79,12 +415,12 @@ public class TeamDataLoader
         Team team =
             teamRepository
                 .findByLeagueAndName(
-                    league,
+                    "MLB",
                     name
                 )
                 .orElse(
                     new Team(
-                        league,
+                        "MLB",
                         name,
                         abbreviation,
                         externalTeamId
@@ -99,6 +435,46 @@ public class TeamDataLoader
             externalTeamId
         );
 
-        teamRepository.save(team);
+        teamRepository.save(
+            team
+        );
+    }
+
+    private void upsertProviderTeam(
+        String league,
+        String name,
+        String abbreviation
+    ) {
+        Team team =
+            teamRepository
+                .findByLeagueAndName(
+                    league,
+                    name
+                )
+                .orElse(
+                    new Team(
+                        league,
+                        name,
+                        abbreviation,
+                        (String) null
+                    )
+                );
+
+        team.setAbbreviation(
+            abbreviation
+        );
+
+        /*
+         * Do NOT set externalProviderId
+         * here.
+         *
+         * Once Sportradar gives us the
+         * team's GUID, we want it to stay
+         * saved across application restarts.
+         */
+
+        teamRepository.save(
+            team
+        );
     }
 }

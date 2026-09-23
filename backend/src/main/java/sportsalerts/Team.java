@@ -12,7 +12,9 @@ import jakarta.persistence.Table;
 public class Team {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(
+        strategy = GenerationType.IDENTITY
+    )
     private Long id;
 
     private String league;
@@ -21,12 +23,38 @@ public class Team {
 
     private String abbreviation;
 
-    @Column(name = "external_team_id")
+    /*
+     * MLB Stats API uses numeric team IDs.
+     *
+     * Example:
+     * Dodgers = 119
+     */
+    @Column(
+        name = "external_team_id"
+    )
     private Long externalTeamId;
+
+    /*
+     * Providers such as Sportradar use
+     * string/GUID identifiers.
+     *
+     * NFL and NBA will use this field.
+     */
+    @Column(
+        name = "external_provider_id",
+        length = 100
+    )
+    private String externalProviderId;
 
     public Team() {
     }
 
+    /*
+     * Existing MLB constructor.
+     *
+     * Keeping this means our current
+     * TeamDataLoader continues working.
+     */
     public Team(
         String league,
         String name,
@@ -36,7 +64,24 @@ public class Team {
         this.league = league;
         this.name = name;
         this.abbreviation = abbreviation;
-        this.externalTeamId = externalTeamId;
+        this.externalTeamId =
+            externalTeamId;
+    }
+
+    /*
+     * Constructor for NFL/NBA teams.
+     */
+    public Team(
+        String league,
+        String name,
+        String abbreviation,
+        String externalProviderId
+    ) {
+        this.league = league;
+        this.name = name;
+        this.abbreviation = abbreviation;
+        this.externalProviderId =
+            externalProviderId;
     }
 
     public Long getId() {
@@ -47,7 +92,9 @@ public class Team {
         return league;
     }
 
-    public void setLeague(String league) {
+    public void setLeague(
+        String league
+    ) {
         this.league = league;
     }
 
@@ -55,7 +102,9 @@ public class Team {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(
+        String name
+    ) {
         this.name = name;
     }
 
@@ -66,7 +115,8 @@ public class Team {
     public void setAbbreviation(
         String abbreviation
     ) {
-        this.abbreviation = abbreviation;
+        this.abbreviation =
+            abbreviation;
     }
 
     public Long getExternalTeamId() {
@@ -76,6 +126,18 @@ public class Team {
     public void setExternalTeamId(
         Long externalTeamId
     ) {
-        this.externalTeamId = externalTeamId;
+        this.externalTeamId =
+            externalTeamId;
+    }
+
+    public String getExternalProviderId() {
+        return externalProviderId;
+    }
+
+    public void setExternalProviderId(
+        String externalProviderId
+    ) {
+        this.externalProviderId =
+            externalProviderId;
     }
 }
