@@ -75,7 +75,9 @@ public class MlbTransactionScheduler {
         }
 
         /*
-         * Group users by team.
+         * Group followers by team so each MLB team
+         * is checked only once per scheduler cycle,
+         * regardless of how many users follow it.
          *
          * Example:
          *
@@ -85,10 +87,6 @@ public class MlbTransactionScheduler {
          *
          * Yankees
          *   User 3
-         *
-         * This lets us process each MLB team once
-         * while still notifying every user who
-         * follows that team.
          */
         Map<String, List<FollowedTeam>>
             followersByTeam =
@@ -103,25 +101,8 @@ public class MlbTransactionScheduler {
         LocalDate today =
             LocalDate.now();
 
-        String rawTransactions;
-
-        try {
-            rawTransactions =
-                mlbTransactionService
-                    .getAllMlbTransactions(
-                        today.toString(),
-                        today.toString()
-                    );
-
-        } catch (Exception exception) {
-
-            System.err.println(
-                "MLB live transaction request failed: "
-                + exception.getMessage()
-            );
-
-            return;
-        }
+        String todayString =
+            today.toString();
 
         int totalNewEvents = 0;
         int totalNotifications = 0;
@@ -159,24 +140,34 @@ public class MlbTransactionScheduler {
                 continue;
             }
 
+            Long externalTeamId =
+                team.getExternalTeamId();
+
             try {
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * Fetch only this team's transactions
+                 * instead of downloading the entire
+                 * league-wide transaction feed.
+                 */
                 List<MlbTransactionEvent> events =
                     mlbTransactionService
-                        .getNormalizedTransactionsForTeam(
-                            rawTransactions,
-                            team.getExternalTeamId()
+                        .getNormalizedTransactions(
+                            externalTeamId,
+                            todayString,
+                            todayString
                         );
 
                 /*
-                 * Save each MLB event only once.
-                 *
-                 * roster_events is global event data,
-                 * not one copy per user.
+                 * roster_events remains global.
+                 * Each real MLB event is saved only once.
                  */
                 List<RosterEvent> savedEvents =
                     rosterEventService
                         .saveMlbEvents(
-                            team.getExternalTeamId(),
+                            externalTeamId,
                             events
                         );
 
@@ -184,8 +175,8 @@ public class MlbTransactionScheduler {
                     savedEvents.size();
 
                 /*
-                 * Now distribute each newly saved event
-                 * to every user following this team.
+                 * Distribute newly saved events to
+                 * each user following this team.
                  */
                 for (
                     RosterEvent event :
@@ -226,7 +217,6 @@ public class MlbTransactionScheduler {
                 }
 
                 if (!savedEvents.isEmpty()) {
-
                     System.out.println(
                         "MLB live check: "
                         + teamName
