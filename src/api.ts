@@ -1,5 +1,5 @@
 import {
-  getAuthToken
+  getAuthToken,
 } from "./installation";
 
 const API_URL =
@@ -57,15 +57,56 @@ export type AlertPreferences = {
 export type RosterEvent = {
   id: number;
   league: string;
-  externalTeamId: number;
+
+  externalTeamId:
+    number | null;
+
+  externalProviderTeamId:
+    string | null;
+
   teamName: string;
-  sourceTransactionId: number;
-  playerId: number;
+
+  sourceTransactionId:
+    number | null;
+
+  sourceProviderEventId:
+    string | null;
+
+  playerId:
+    number | null;
+
+  playerProviderId:
+    string | null;
+
   playerName: string;
   eventType: string;
   eventDate: string;
   description: string;
   createdAt: string;
+};
+
+export type CurrentInjury = {
+  playerName: string;
+
+  injury:
+    string | null;
+
+  secondaryInjury:
+    string | null;
+
+  gameStatus:
+    string | null;
+
+  practiceStatus:
+    string | null;
+
+  statusDate:
+    string | null;
+
+  estimatedReturnDate:
+    string | null;
+
+  updatedAt: string;
 };
 
 export async function registerInstallation(
@@ -175,6 +216,7 @@ export async function deleteFollowedTeam(
     `${API_URL}/api/followed-teams/${id}`,
     {
       method: "DELETE",
+
       headers:
         await getAuthHeaders(),
     }
@@ -250,6 +292,27 @@ export async function getRosterEvents():
   if (!response.ok) {
     throw new Error(
       `Could not load alerts (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+export async function getCurrentInjuries(
+  teamId: number
+): Promise<CurrentInjury[]> {
+
+  const response = await fetch(
+    `${API_URL}/api/followed-teams/${teamId}/injuries`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not load current injuries (${response.status})`
     );
   }
 

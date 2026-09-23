@@ -22,8 +22,10 @@ import {
 
 import {
   AlertPreferences,
+  CurrentInjury,
   deleteFollowedTeam,
   getAlertPreferences,
+  getCurrentInjuries,
   saveAlertPreferences,
 } from "../api";
 
@@ -83,14 +85,26 @@ export default function TeamSettingsScreen() {
   const [settings, setSettings] =
     useState<AlertPreferences>({});
 
+  const [injuries, setInjuries] =
+    useState<CurrentInjury[]>([]);
+
   const [loading, setLoading] =
     useState(true);
+
+  const [
+    injuriesLoading,
+    setInjuriesLoading,
+  ] = useState(false);
 
   const [saving, setSaving] =
     useState(false);
 
   useEffect(() => {
     loadSettings();
+
+    if (league === "NFL") {
+      loadCurrentInjuries();
+    }
   }, []);
 
   async function loadSettings() {
@@ -129,6 +143,33 @@ export default function TeamSettingsScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadCurrentInjuries() {
+    try {
+      setInjuriesLoading(true);
+
+      const currentInjuries =
+        await getCurrentInjuries(
+          teamId
+        );
+
+      setInjuries(
+        currentInjuries
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not load current injuries.";
+
+      Alert.alert(
+        "Unable to Load Injuries",
+        message
+      );
+    } finally {
+      setInjuriesLoading(false);
     }
   }
 
@@ -207,6 +248,29 @@ export default function TeamSettingsScreen() {
     }
   }
 
+  function injuryDetail(
+    label: string,
+    value: string | null
+  ) {
+    if (!value) {
+      return null;
+    }
+
+    return (
+      <Text
+        style={styles.injuryDetail}
+      >
+        <Text
+          style={styles.injuryLabel}
+        >
+          {label}:{" "}
+        </Text>
+
+        {value}
+      </Text>
+    );
+  }
+
   return (
     <SafeAreaView
       style={styles.container}
@@ -244,6 +308,115 @@ export default function TeamSettingsScreen() {
             </Text>
           </View>
         </View>
+
+        {league === "NFL" && (
+          <>
+            <Text
+              style={styles.sectionTitle}
+            >
+              Current Injuries
+            </Text>
+
+            <Text
+              style={styles.description}
+            >
+              Current player injury and
+              availability information.
+            </Text>
+
+            {injuriesLoading ? (
+              <View
+                style={
+                  styles.loadingContainer
+                }
+              >
+                <ActivityIndicator
+                  size="large"
+                />
+
+                <Text
+                  style={
+                    styles.loadingText
+                  }
+                >
+                  Loading injuries...
+                </Text>
+              </View>
+            ) : injuries.length === 0 ? (
+              <View
+                style={styles.emptyCard}
+              >
+                <Text
+                  style={styles.emptyText}
+                >
+                  No current injuries
+                  reported.
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={
+                  styles.injuriesContainer
+                }
+              >
+                {injuries.map(
+                  (
+                    injury,
+                    index
+                  ) => (
+                    <View
+                      key={`${injury.playerName}-${index}`}
+                      style={
+                        styles.injuryCard
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.injuryPlayer
+                        }
+                      >
+                        {
+                          injury.playerName
+                        }
+                      </Text>
+
+                      {injuryDetail(
+                        "Injury",
+                        injury.injury
+                      )}
+
+                      {injuryDetail(
+                        "Secondary",
+                        injury.secondaryInjury
+                      )}
+
+                      {injuryDetail(
+                        "Game status",
+                        injury.gameStatus
+                      )}
+
+                      {injuryDetail(
+                        "Practice",
+                        injury.practiceStatus
+                      )}
+
+                      {injuryDetail(
+                        "Estimated return",
+                        injury.estimatedReturnDate
+                      )}
+                    </View>
+                  )
+                )}
+              </View>
+            )}
+
+            <View
+              style={
+                styles.sectionDivider
+              }
+            />
+          </>
+        )}
 
         <Text
           style={styles.sectionTitle}
@@ -430,6 +603,55 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 14,
     color: "#64748B",
+  },
+
+  injuriesContainer: {
+    gap: 10,
+  },
+
+  injuryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
+  },
+
+  injuryPlayer: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 8,
+  },
+
+  injuryDetail: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#475569",
+  },
+
+  injuryLabel: {
+    fontWeight: "700",
+    color: "#334155",
+  },
+
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 18,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+    marginVertical: 28,
   },
 
   settingsCard: {
