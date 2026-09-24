@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 
 import {
   registerInstallation,
@@ -61,12 +62,18 @@ export default function RootLayout() {
           );
         }
 
-        const pushToken =
-          await getExpoPushToken();
+        if (Platform.OS !== "web") {
+          const pushToken =
+            await getExpoPushToken();
 
-        await registerPushToken(
-          pushToken
-        );
+          await registerPushToken(
+            pushToken
+          );
+
+          console.log(
+            "Push token registered with backend."
+          );
+        }
 
         console.log(
           "Push token registered with backend."
