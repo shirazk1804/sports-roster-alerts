@@ -69,9 +69,6 @@ function formatEventDate(
 const eventLabels:
   Record<string, string> = {
 
-  STARTING_LINEUP_POSTED:
-    "Starting Lineup Posted",
-
   IL_PLACEMENT:
     "Placed on Injured List",
 
@@ -196,8 +193,17 @@ export default function AlertsScreen() {
       const savedEvents =
         await getRosterEvents();
 
+      const visibleEvents =
+        savedEvents.filter(
+          event =>
+            event.eventType !==
+            "STARTING_LINEUP_POSTED" &&
+            event.eventType !==
+            "INJURY_STATUS_CHANGE"
+        );
+
       setEvents(
-        savedEvents
+        visibleEvents
       );
 
     } catch (error) {
