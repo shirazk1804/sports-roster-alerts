@@ -22,12 +22,17 @@ public class NflInjuryService {
 
     private final String apiKey;
 
+    private final SportradarRequestLimiter requestLimiter;
+
     public NflInjuryService(
             ObjectMapper objectMapper,
-            @Value("${SPORTRADAR_API_KEY:}") String apiKey) {
+            @Value("${SPORTRADAR_API_KEY:}") String apiKey,
+            SportradarRequestLimiter requestLimiter) {
         this.objectMapper = objectMapper;
 
         this.apiKey = apiKey;
+
+        this.requestLimiter = requestLimiter;
 
         this.restClient = RestClient.create(
                 "https://api.sportradar.com");
@@ -60,17 +65,18 @@ public class NflInjuryService {
              * number because Sportradar can keep
              * current_week on the previous week.
              */
-            String currentWeekResponse = restClient
-                    .get()
-                    .uri(
-                            "/nfl/official/trial/v7/en/games/current_week/schedule.json")
-                    .header(
-                            "x-api-key",
-                            apiKey)
-                    .accept(
-                            MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(String.class);
+            String currentWeekResponse = requestLimiter.execute(
+                    () -> restClient
+                            .get()
+                            .uri(
+                                    "/nfl/official/trial/v7/en/games/current_week/schedule.json")
+                            .header(
+                                    "x-api-key",
+                                    apiKey)
+                            .accept(
+                                    MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(String.class));
 
             JsonNode currentWeekRoot = objectMapper.readTree(
                     currentWeekResponse);
@@ -101,21 +107,22 @@ public class NflInjuryService {
              * trusting Sportradar to choose which
              * week is current.
              */
-            String seasonScheduleResponse = restClient
-                    .get()
-                    .uri(
-                            "/nfl/official/trial/v7/en/games/"
-                                    + seasonYear
-                                    + "/"
-                                    + seasonType
-                                    + "/schedule.json")
-                    .header(
-                            "x-api-key",
-                            apiKey)
-                    .accept(
-                            MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(String.class);
+            String seasonScheduleResponse = requestLimiter.execute(
+                    () -> restClient
+                            .get()
+                            .uri(
+                                    "/nfl/official/trial/v7/en/games/"
+                                            + seasonYear
+                                            + "/"
+                                            + seasonType
+                                            + "/schedule.json")
+                            .header(
+                                    "x-api-key",
+                                    apiKey)
+                            .accept(
+                                    MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(String.class));
 
             JsonNode seasonRoot = objectMapper.readTree(
                     seasonScheduleResponse);
@@ -250,23 +257,24 @@ public class NflInjuryService {
 
         ensureApiKey();
 
-        return restClient
-                .get()
-                .uri(
-                        "/nfl/official/trial/v7/en/seasons/"
-                                + week.seasonYear()
-                                + "/"
-                                + week.seasonType()
-                                + "/"
-                                + week.week()
-                                + "/injuries.json")
-                .header(
-                        "x-api-key",
-                        apiKey)
-                .accept(
-                        MediaType.APPLICATION_JSON)
-                .retrieve()
-                .body(String.class);
+        return requestLimiter.execute(
+                () -> restClient
+                        .get()
+                        .uri(
+                                "/nfl/official/trial/v7/en/seasons/"
+                                        + week.seasonYear()
+                                        + "/"
+                                        + week.seasonType()
+                                        + "/"
+                                        + week.week()
+                                        + "/injuries.json")
+                        .header(
+                                "x-api-key",
+                                apiKey)
+                        .accept(
+                                MediaType.APPLICATION_JSON)
+                        .retrieve()
+                        .body(String.class));
     }
 
     public List<NflInjuryEvent> getNormalizedInjuriesForTeam(

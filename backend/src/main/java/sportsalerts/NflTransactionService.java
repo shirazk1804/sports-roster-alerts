@@ -21,225 +21,166 @@ public class NflTransactionService {
 
     private final String apiKey;
 
+    private final SportradarRequestLimiter requestLimiter;
+
     public NflTransactionService(
-        ObjectMapper objectMapper,
-        @Value("${SPORTRADAR_API_KEY:}")
-        String apiKey
-    ) {
-        this.objectMapper =
-            objectMapper;
+            ObjectMapper objectMapper,
+            @Value("${SPORTRADAR_API_KEY:}") String apiKey,
+            SportradarRequestLimiter requestLimiter) {
+        this.objectMapper = objectMapper;
 
-        this.apiKey =
-            apiKey;
+        this.requestLimiter = requestLimiter;
 
-        this.restClient =
-            RestClient.create(
-                "https://api.sportradar.com"
-            );
+        this.apiKey = apiKey;
+
+        this.restClient = RestClient.create(
+                "https://api.sportradar.com");
     }
 
     public String getDailyTransactions(
-        LocalDate date
-    ) {
-        if (
-            apiKey == null ||
-            apiKey.isBlank()
-        ) {
+            LocalDate date) {
+        if (apiKey == null ||
+                apiKey.isBlank()) {
             throw new IllegalStateException(
-                "Sportradar API key is not configured"
-            );
+                    "Sportradar API key is not configured");
         }
 
-        String year =
-            String.valueOf(
-                date.getYear()
-            );
+        String year = String.valueOf(
+                date.getYear());
 
-        String month =
-            String.format(
+        String month = String.format(
                 "%02d",
-                date.getMonthValue()
-            );
+                date.getMonthValue());
 
-        String day =
-            String.format(
+        String day = String.format(
                 "%02d",
-                date.getDayOfMonth()
-            );
+                date.getDayOfMonth());
 
-        return restClient
-            .get()
-            .uri(
-                "/nfl/official/trial/v7/en/league/"
-                    + year
-                    + "/"
-                    + month
-                    + "/"
-                    + day
-                    + "/transactions.json"
-            )
-            .header(
-                "x-api-key",
-                apiKey
-            )
-            .accept(
-                MediaType.APPLICATION_JSON
-            )
-            .retrieve()
-            .body(String.class);
+        return requestLimiter.execute(
+                () -> restClient
+                        .get()
+                        .uri(
+                                "/nfl/official/trial/v7/en/league/"
+                                        + year
+                                        + "/"
+                                        + month
+                                        + "/"
+                                        + day
+                                        + "/transactions.json")
+                        .header(
+                                "x-api-key",
+                                apiKey)
+                        .accept(
+                                MediaType.APPLICATION_JSON)
+                        .retrieve()
+                        .body(String.class));
     }
 
-    public List<NflTransactionEvent>
-        getNormalizedTransactionsForTeam(
+    public List<NflTransactionEvent> getNormalizedTransactionsForTeam(
             String rawJson,
-            String externalProviderTeamId
-        ) {
+            String externalProviderTeamId) {
 
-        List<NflTransactionEvent> events =
-            new ArrayList<>();
+        List<NflTransactionEvent> events = new ArrayList<>();
 
         try {
-            JsonNode root =
-                objectMapper.readTree(
-                    rawJson
-                );
+            JsonNode root = objectMapper.readTree(
+                    rawJson);
 
-            JsonNode players =
-                root.get("players");
+            JsonNode players = root.get("players");
 
-            if (
-                players == null ||
-                !players.isArray()
-            ) {
+            if (players == null ||
+                    !players.isArray()) {
                 return events;
             }
 
-            for (
-                JsonNode player :
-                players
-            ) {
-                String playerId =
-                    getText(
+            for (JsonNode player : players) {
+                String playerId = getText(
                         player,
-                        "id"
-                    );
+                        "id");
 
-                String playerName =
-                    getText(
+                String playerName = getText(
                         player,
-                        "name"
-                    );
+                        "name");
 
-                JsonNode transactions =
-                    player.get(
-                        "transactions"
-                    );
+                JsonNode transactions = player.get(
+                        "transactions");
 
-                if (
-                    transactions == null ||
-                    !transactions.isArray()
-                ) {
+                if (transactions == null ||
+                        !transactions.isArray()) {
                     continue;
                 }
 
-                for (
-                    JsonNode transaction :
-                    transactions
-                ) {
-                    if (
-                        !belongsToTeam(
+                for (JsonNode transaction : transactions) {
+                    if (!belongsToTeam(
                             transaction,
-                            externalProviderTeamId
-                        )
-                    ) {
+                            externalProviderTeamId)) {
                         continue;
                     }
 
-                    String transactionId =
-                        getText(
+                    String transactionId = getText(
                             transaction,
-                            "id"
-                        );
+                            "id");
 
-                    String description =
-                        getText(
+                    String description = getText(
                             transaction,
-                            "desc"
-                        );
+                            "desc");
 
-                    String effectiveDate =
-                        getText(
+                    String effectiveDate = getText(
                             transaction,
-                            "effective_date"
-                        );
+                            "effective_date");
 
-                    String transactionCode =
-                        getText(
+                    String transactionCode = getText(
                             transaction,
-                            "transaction_code"
-                        );
+                            "transaction_code");
 
-                    String transactionType =
-                        getText(
+                    String transactionType = getText(
                             transaction,
-                            "transaction_type"
-                        );
+                            "transaction_type");
 
-                    String statusBefore =
-                        getText(
+                    String statusBefore = getText(
                             transaction,
-                            "status_before"
-                        );
+                            "status_before");
 
-                    String statusAfter =
-                        getText(
+                    String statusAfter = getText(
                             transaction,
-                            "status_after"
-                        );
+                            "status_after");
 
-                    String eventType =
-                        normalizeEventType(
+                    String eventType = normalizeEventType(
                             transactionCode,
                             transactionType,
                             description,
                             statusBefore,
-                            statusAfter
-                        );
+                            statusAfter);
 
                     if (eventType == null) {
                         System.out.println(
-                            "Unmapped NFL transaction: "
-                                + transactionCode
-                                + " | "
-                                + transactionType
-                                + " | "
-                                + description
-                        );
+                                "Unmapped NFL transaction: "
+                                        + transactionCode
+                                        + " | "
+                                        + transactionType
+                                        + " | "
+                                        + description);
 
                         continue;
                     }
 
-                    String teamName =
-                        getTeamName(
+                    String teamName = getTeamName(
                             transaction,
-                            externalProviderTeamId
-                        );
+                            externalProviderTeamId);
 
                     events.add(
-                        new NflTransactionEvent(
-                            transactionId,
-                            playerId,
-                            playerName,
-                            externalProviderTeamId,
-                            teamName,
-                            eventType,
-                            effectiveDate,
-                            description,
-                            transactionCode,
-                            statusBefore,
-                            statusAfter
-                        )
-                    );
+                            new NflTransactionEvent(
+                                    transactionId,
+                                    playerId,
+                                    playerName,
+                                    externalProviderTeamId,
+                                    teamName,
+                                    eventType,
+                                    effectiveDate,
+                                    description,
+                                    transactionCode,
+                                    statusBefore,
+                                    statusAfter));
                 }
             }
 
@@ -248,295 +189,224 @@ public class NflTransactionService {
         } catch (Exception exception) {
 
             throw new RuntimeException(
-                "Could not parse NFL transactions",
-                exception
-            );
+                    "Could not parse NFL transactions",
+                    exception);
         }
     }
 
     private boolean belongsToTeam(
-        JsonNode transaction,
-        String externalProviderTeamId
-    ) {
-        JsonNode fromTeam =
-            transaction.get(
-                "from_team"
-            );
+            JsonNode transaction,
+            String externalProviderTeamId) {
+        JsonNode fromTeam = transaction.get(
+                "from_team");
 
-        if (
-            teamMatches(
+        if (teamMatches(
                 fromTeam,
-                externalProviderTeamId
-            )
-        ) {
+                externalProviderTeamId)) {
             return true;
         }
 
-        JsonNode toTeam =
-            transaction.get(
-                "to_team"
-            );
+        JsonNode toTeam = transaction.get(
+                "to_team");
 
         return teamMatches(
-            toTeam,
-            externalProviderTeamId
-        );
+                toTeam,
+                externalProviderTeamId);
     }
 
     private boolean teamMatches(
-        JsonNode team,
-        String externalProviderTeamId
-    ) {
-        if (
-            team == null ||
-            team.isNull()
-        ) {
+            JsonNode team,
+            String externalProviderTeamId) {
+        if (team == null ||
+                team.isNull()) {
             return false;
         }
 
-        String teamId =
-            getText(
+        String teamId = getText(
                 team,
-                "id"
-            );
+                "id");
 
         return externalProviderTeamId
-            .equals(teamId);
+                .equals(teamId);
     }
 
     private String getTeamName(
-        JsonNode transaction,
-        String externalProviderTeamId
-    ) {
-        JsonNode toTeam =
-            transaction.get(
-                "to_team"
-            );
+            JsonNode transaction,
+            String externalProviderTeamId) {
+        JsonNode toTeam = transaction.get(
+                "to_team");
 
-        if (
-            teamMatches(
+        if (teamMatches(
                 toTeam,
-                externalProviderTeamId
-            )
-        ) {
+                externalProviderTeamId)) {
             return buildTeamName(
-                toTeam
-            );
+                    toTeam);
         }
 
-        JsonNode fromTeam =
-            transaction.get(
-                "from_team"
-            );
+        JsonNode fromTeam = transaction.get(
+                "from_team");
 
-        if (
-            teamMatches(
+        if (teamMatches(
                 fromTeam,
-                externalProviderTeamId
-            )
-        ) {
+                externalProviderTeamId)) {
             return buildTeamName(
-                fromTeam
-            );
+                    fromTeam);
         }
 
         return "Unknown Team";
     }
 
     private String buildTeamName(
-        JsonNode team
-    ) {
-        String market =
-            getText(
+            JsonNode team) {
+        String market = getText(
                 team,
-                "market"
-            );
+                "market");
 
-        String name =
-            getText(
+        String name = getText(
                 team,
-                "name"
-            );
+                "name");
 
-        return (
-            market + " " + name
-        ).trim();
+        return (market + " " + name).trim();
     }
 
     private String normalizeEventType(
-        String transactionCode,
-        String transactionType,
-        String description,
-        String statusBefore,
-        String statusAfter
-    ) {
-        String code =
-            transactionCode == null
+            String transactionCode,
+            String transactionType,
+            String description,
+            String statusBefore,
+            String statusAfter) {
+        String code = transactionCode == null
                 ? ""
                 : transactionCode
-                    .toUpperCase();
+                        .toUpperCase();
 
-        String type =
-            transactionType == null
+        String type = transactionType == null
                 ? ""
                 : transactionType
-                    .toLowerCase();
+                        .toLowerCase();
 
-        String desc =
-            description == null
+        String desc = description == null
                 ? ""
                 : description
-                    .toLowerCase();
+                        .toLowerCase();
 
-        String before =
-            statusBefore == null
+        String before = statusBefore == null
                 ? ""
                 : statusBefore
-                    .toUpperCase();
+                        .toUpperCase();
 
-        String after =
-            statusAfter == null
+        String after = statusAfter == null
                 ? ""
                 : statusAfter
-                    .toUpperCase();
+                        .toUpperCase();
 
         /*
          * Injured Reserve
          */
-        if (
-            "IR".equals(after) &&
-            !"IR".equals(before)
-        ) {
+        if ("IR".equals(after) &&
+                !"IR".equals(before)) {
             return "INJURED_RESERVE";
         }
 
-        if (
-            "IRD".equals(after) &&
-            !"IRD".equals(before)
-        ) {
+        if ("IRD".equals(after) &&
+                !"IRD".equals(before)) {
             return "IR_DESIGNATED_RETURN";
         }
 
         /*
          * PUP / NFI-type roster statuses
          */
-        if (
-            "PUP".equals(after) &&
-            !"PUP".equals(before)
-        ) {
+        if ("PUP".equals(after) &&
+                !"PUP".equals(before)) {
             return "PUP_PLACEMENT";
         }
 
-        if (
-            "NON".equals(after) &&
-            !"NON".equals(before)
-        ) {
+        if ("NON".equals(after) &&
+                !"NON".equals(before)) {
             return "NFI_PLACEMENT";
         }
 
         /*
          * Practice Squad
          */
-        if (
-            "PRA".equals(after) &&
-            !"PRA".equals(before)
-        ) {
+        if ("PRA".equals(after) &&
+                !"PRA".equals(before)) {
             return "PRACTICE_SQUAD";
         }
 
         /*
          * Suspension
          */
-        if (
-            "SUS".equals(after) &&
-            !"SUS".equals(before)
-        ) {
+        if ("SUS".equals(after) &&
+                !"SUS".equals(before)) {
             return "SUSPENDED";
         }
 
-        if (
-            "SUS".equals(before) &&
-            "ACT".equals(after)
-        ) {
+        if ("SUS".equals(before) &&
+                "ACT".equals(after)) {
             return "SUSPENSION_REINSTATED";
         }
 
         /*
          * Returning to active roster.
          */
-        if (
-            "ACT".equals(after) &&
-            (
-                "IR".equals(before) ||
-                "IRD".equals(before) ||
-                "PUP".equals(before) ||
-                "NON".equals(before)
-            )
-        ) {
+        if ("ACT".equals(after) &&
+                ("IR".equals(before) ||
+                        "IRD".equals(before) ||
+                        "PUP".equals(before) ||
+                        "NON".equals(before))) {
             return "ACTIVATED";
         }
 
         /*
          * Waivers
          */
-        if (
-            code.startsWith("WA") ||
-            type.contains("waiv") ||
-            desc.contains("waived")
-        ) {
+        if (code.startsWith("WA") ||
+                type.contains("waiv") ||
+                desc.contains("waived")) {
             return "WAIVED";
         }
 
         /*
          * Releases
          */
-        if (
-            "REL".equals(code) ||
-            type.contains("release") ||
-            desc.contains("released")
-        ) {
+        if ("REL".equals(code) ||
+                type.contains("release") ||
+                desc.contains("released")) {
             return "RELEASED";
         }
 
         /*
          * Trades
          */
-        if (
-            "TRD".equals(code) ||
-            type.contains("trade") ||
-            desc.contains("traded")
-        ) {
+        if ("TRD".equals(code) ||
+                type.contains("trade") ||
+                desc.contains("traded")) {
             return "TRADE";
         }
 
         /*
          * Signings
          */
-        if (
-            "SGN".equals(code) ||
-            type.contains("sign") ||
-            desc.contains("signed")
-        ) {
+        if ("SGN".equals(code) ||
+                type.contains("sign") ||
+                desc.contains("signed")) {
             return "SIGNED";
         }
 
         /*
          * Retirement
          */
-        if (
-            "RET".equals(after) ||
-            desc.contains("retired")
-        ) {
+        if ("RET".equals(after) ||
+                desc.contains("retired")) {
             return "RETIRED";
         }
 
         /*
          * Generic activation.
          */
-        if (
-            "ACT".equals(code) ||
-            type.contains("activated")
-        ) {
+        if ("ACT".equals(code) ||
+                type.contains("activated")) {
             return "ACTIVATED";
         }
 
@@ -544,20 +414,16 @@ public class NflTransactionService {
     }
 
     private String getText(
-        JsonNode node,
-        String field
-    ) {
+            JsonNode node,
+            String field) {
         if (node == null) {
             return "";
         }
 
-        JsonNode value =
-            node.get(field);
+        JsonNode value = node.get(field);
 
-        if (
-            value == null ||
-            value.isNull()
-        ) {
+        if (value == null ||
+                value.isNull()) {
             return "";
         }
 
