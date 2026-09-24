@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "sports-roster-alerts",
+    "name": "Sports Roster Alerts",
     "slug": "sports-roster-alerts",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sportsrosteralerts",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.shirazk.sportsrosteralerts",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

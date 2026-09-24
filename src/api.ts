@@ -59,24 +59,24 @@ export type RosterEvent = {
   league: string;
 
   externalTeamId:
-    number | null;
+  number | null;
 
   externalProviderTeamId:
-    string | null;
+  string | null;
 
   teamName: string;
 
   sourceTransactionId:
-    number | null;
+  number | null;
 
   sourceProviderEventId:
-    string | null;
+  string | null;
 
   playerId:
-    number | null;
+  number | null;
 
   playerProviderId:
-    string | null;
+  string | null;
 
   playerName: string;
   eventType: string;
@@ -85,26 +85,43 @@ export type RosterEvent = {
   createdAt: string;
 };
 
+export type InjuryPracticeReport = {
+  reportDate: string;
+  practiceStatus: string | null;
+};
+
 export type CurrentInjury = {
   playerName: string;
 
+  position:
+  string | null;
+
+  seasonYear:
+  number | null;
+
+  seasonType:
+  string | null;
+
+  weekNumber:
+  number | null;
+
   injury:
-    string | null;
+  string | null;
 
   secondaryInjury:
-    string | null;
+  string | null;
 
   gameStatus:
-    string | null;
-
-  practiceStatus:
-    string | null;
+  string | null;
 
   statusDate:
-    string | null;
+  string | null;
 
   estimatedReturnDate:
-    string | null;
+  string | null;
+
+  practiceReports:
+  InjuryPracticeReport[];
 
   updatedAt: string;
 };

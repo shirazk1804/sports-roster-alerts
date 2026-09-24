@@ -138,7 +138,48 @@ const eventLabels:
 
   ROSTER_ACTIVATION:
     "Activated",
+
+  INJURED_RESERVE:
+    "Injured Reserve",
+
+  IR_DESIGNATED_RETURN:
+    "Injured Reserve - Designated for Return",
+
+  PUP_PLACEMENT:
+    "Placed on PUP",
+
+  NFI_PLACEMENT:
+    "Placed on NFI",
+
+  PRACTICE_SQUAD:
+    "Practice Squad",
+
+  ACTIVATED:
+    "Activated",
+
+  INJURY_STATUS_CHANGE:
+    "Injury Status Update",
 };
+
+function getLeagueEmoji(
+  league: string
+): string {
+  switch (
+  league.toUpperCase()
+  ) {
+    case "NFL":
+      return "🏈";
+
+    case "NBA":
+      return "🏀";
+
+    case "MLB":
+      return "⚾";
+
+    default:
+      return "🏟️";
+  }
+}
 
 export default function AlertsScreen() {
   const router = useRouter();
@@ -273,7 +314,9 @@ export default function AlertsScreen() {
               <Text
                 style={styles.emoji}
               >
-                ⚾
+                {getLeagueEmoji(
+                  event.league
+                )}
               </Text>
 
               <View
@@ -298,7 +341,11 @@ export default function AlertsScreen() {
             >
               {eventLabels[
                 event.eventType
-              ] || event.eventType}
+              ] ||
+                event.eventType.replace(
+                  /_/g,
+                  " "
+                )}
             </Text>
 
             <Text

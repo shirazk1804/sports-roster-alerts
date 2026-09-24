@@ -1,15 +1,33 @@
 package sportsalerts;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record NflInjurySnapshotResponse(
+
     String playerName,
+
+    String position,
+
+    Integer seasonYear,
+
+    String seasonType,
+
+    Integer weekNumber,
+
     String injury,
+
     String secondaryInjury,
+
     String gameStatus,
-    String practiceStatus,
+
     String statusDate,
+
     String estimatedReturnDate,
+
+    List<NflInjuryPracticeDayResponse> practiceReports,
+
     LocalDateTime updatedAt
+
 ) {
 }

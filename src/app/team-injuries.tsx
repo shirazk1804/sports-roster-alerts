@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     Alert,
     Pressable,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -25,528 +26,1005 @@ import {
 } from "../api";
 
 export default function TeamInjuriesScreen() {
-  const router = useRouter();
+    const router = useRouter();
 
-  const params = useLocalSearchParams<{
-    id: string;
-    name: string;
-    emoji: string;
-  }>();
+    const params = useLocalSearchParams<{
+        id: string;
+        name: string;
+        emoji: string;
+    }>();
 
-  const teamId =
-    Number(params.id);
+    const teamId =
+        Number(params.id);
 
-  const teamName =
-    params.name || "";
+    const teamName =
+        params.name || "";
 
-  const emoji =
-    params.emoji || "🏈";
+    const emoji =
+        params.emoji || "🏈";
 
-  const [injuries, setInjuries] =
-    useState<CurrentInjury[]>([]);
+    const [injuries, setInjuries] =
+        useState<CurrentInjury[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+    const [loading, setLoading] =
+        useState(true);
 
-  useEffect(() => {
-    loadInjuries();
-  }, []);
+    const [refreshing, setRefreshing] =
+        useState(false);
 
-  async function loadInjuries() {
-    try {
-      setLoading(true);
+    useEffect(() => {
+        loadInjuries();
+    }, []);
 
-      const currentInjuries =
-        await getCurrentInjuries(
-          teamId
+    async function loadInjuries(
+        showLoading = true
+    ) {
+        try {
+            if (showLoading) {
+                setLoading(true);
+            }
+
+            const currentInjuries =
+                await getCurrentInjuries(
+                    teamId
+                );
+
+            setInjuries(
+                currentInjuries
+            );
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Could not load current injuries.";
+
+            Alert.alert(
+                "Unable to Load Injuries",
+                message
+            );
+        } finally {
+            if (showLoading) {
+                setLoading(false);
+            }
+        }
+    }
+
+    async function refreshInjuries() {
+        try {
+            setRefreshing(true);
+
+            await loadInjuries(
+                false
+            );
+        } finally {
+            setRefreshing(false);
+        }
+    }
+
+    function getPracticeDates() {
+        const dates =
+            new Set<string>();
+
+        injuries.forEach(
+            injury => {
+                (
+                    injury.practiceReports ??
+                    []
+                ).forEach(
+                    report => {
+                        if (report.reportDate) {
+                            dates.add(
+                                report.reportDate
+                            );
+                        }
+                    }
+                );
+            }
         );
 
-      setInjuries(
-        currentInjuries
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Could not load current injuries.";
-
-      Alert.alert(
-        "Unable to Load Injuries",
-        message
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /*
-   * Sportradar's status_date is the
-   * provider's injury-status timestamp.
-   *
-   * Some provider timestamps use midnight
-   * as a date marker. In that case we show
-   * only the date rather than pretending
-   * midnight is a meaningful update time.
-   */
-  function formatStatusDate(
-    value: string | null
-  ) {
-    if (!value) {
-      return "";
+        return Array.from(
+            dates
+        ).sort();
     }
 
-    const dateOnlyMatch =
-      value.match(
-        /^(\d{4})-(\d{2})-(\d{2})/
-      );
-
-    if (!dateOnlyMatch) {
-      return value;
-    }
-
-    const [
-      ,
-      year,
-      month,
-      day,
-    ] = dateOnlyMatch;
-
-    const hasMidnightTime =
-      value.includes(
-        "T00:00:00"
-      );
-
-    if (
-      hasMidnightTime ||
-      !value.includes("T")
+    function getPracticeStatus(
+        injury: CurrentInjury,
+        reportDate: string
     ) {
-      const date =
-        new Date(
-          Number(year),
-          Number(month) - 1,
-          Number(day)
+        const report =
+            (
+                injury.practiceReports ??
+                []
+            ).find(
+                item =>
+                    item.reportDate ===
+                    reportDate
+            );
+
+        return formatPracticeStatus(
+            report?.practiceStatus ??
+            null
+        );
+    }
+
+    function formatPracticeStatus(
+        value: string | null
+    ) {
+        if (!value) {
+            return "—";
+        }
+
+        const normalized =
+            value
+                .trim()
+                .toLowerCase();
+
+        if (
+            normalized.includes(
+                "did not participate"
+            ) ||
+            normalized === "dnp"
+        ) {
+            return "DNP";
+        }
+
+        if (
+            normalized.includes(
+                "limited"
+            ) ||
+            normalized === "lp"
+        ) {
+            return "LP";
+        }
+
+        if (
+            normalized.includes(
+                "full"
+            ) ||
+            normalized === "fp"
+        ) {
+            return "FP";
+        }
+
+        return value;
+    }
+
+    function formatDay(
+        value: string
+    ) {
+        const date =
+            new Date(
+                `${value}T12:00:00`
+            );
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+            return value;
+        }
+
+        return date
+            .toLocaleDateString(
+                undefined,
+                {
+                    weekday: "short",
+                }
+            )
+            .toUpperCase();
+    }
+
+    function formatShortDate(
+        value: string
+    ) {
+        const date =
+            new Date(
+                `${value}T12:00:00`
+            );
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+            return "";
+        }
+
+        return date
+            .toLocaleDateString(
+                undefined,
+                {
+                    month: "numeric",
+                    day: "numeric",
+                }
+            );
+    }
+
+    function formatLastChecked(
+        value: string | null
+    ) {
+        if (!value) {
+            return "";
+        }
+
+        const utcValue =
+            value.endsWith("Z")
+                ? value
+                : `${value}Z`;
+
+        const date =
+            new Date(
+                utcValue
+            );
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+            return "";
+        }
+
+        const dateText =
+            date.toLocaleDateString(
+                undefined,
+                {
+                    month: "short",
+                    day: "numeric",
+                }
+            );
+
+        const timeText =
+            date.toLocaleTimeString(
+                undefined,
+                {
+                    hour: "numeric",
+                    minute: "2-digit",
+                }
+            );
+
+        return `${dateText} · ${timeText}`;
+    }
+
+    function getLatestChecked() {
+        let latestTimestamp:
+            number | null = null;
+
+        injuries.forEach(
+            injury => {
+                if (!injury.updatedAt) {
+                    return;
+                }
+
+                const utcValue =
+                    injury.updatedAt.endsWith(
+                        "Z"
+                    )
+                        ? injury.updatedAt
+                        : `${injury.updatedAt}Z`;
+
+                const timestamp =
+                    new Date(
+                        utcValue
+                    ).getTime();
+
+                if (
+                    Number.isNaN(
+                        timestamp
+                    )
+                ) {
+                    return;
+                }
+
+                if (
+                    latestTimestamp === null ||
+                    timestamp >
+                    latestTimestamp
+                ) {
+                    latestTimestamp =
+                        timestamp;
+                }
+            }
         );
 
-      return date.toLocaleDateString(
-        undefined,
-        {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
+        if (
+            latestTimestamp === null
+        ) {
+            return "";
         }
-      );
+
+        return formatLastChecked(
+            new Date(
+                latestTimestamp
+            ).toISOString()
+        );
     }
 
-    const parsed =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        parsed.getTime()
-      )
+    function getInjuryDescription(
+        injury: CurrentInjury
     ) {
-      return value;
+        const parts =
+            [
+                injury.injury,
+                injury.secondaryInjury,
+            ].filter(
+                value =>
+                    value &&
+                    value.trim()
+            );
+
+        if (
+            parts.length === 0
+        ) {
+            return "Injury not specified";
+        }
+
+        return parts.join(
+            " / "
+        );
     }
 
-    const dateText =
-      parsed.toLocaleDateString(
-        undefined,
-        {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }
-      );
+    const practiceDates =
+        getPracticeDates();
 
-    const timeText =
-      parsed.toLocaleTimeString(
-        undefined,
-        {
-          hour: "numeric",
-          minute: "2-digit",
-        }
-      );
+    const weekNumber =
+        injuries.length > 0
+            ? injuries[0].weekNumber
+            : null;
 
-    return `${dateText} · ${timeText}`;
-  }
-
-  /*
-   * updatedAt comes from our backend.
-   *
-   * This means when Sports Roster Alerts
-   * last stored/checked this snapshot,
-   * NOT when the team officially reported it.
-   */
-  function formatCheckedAt(
-    value: string
-  ) {
-    if (!value) {
-      return "";
-    }
-
-    const utcValue =
-      value.endsWith("Z")
-        ? value
-        : `${value}Z`;
-
-    const date =
-      new Date(utcValue);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return "";
-    }
-
-    const dateText =
-      date.toLocaleDateString(
-        undefined,
-        {
-          month: "short",
-          day: "numeric",
-        }
-      );
-
-    const timeText =
-      date.toLocaleTimeString(
-        undefined,
-        {
-          hour: "numeric",
-          minute: "2-digit",
-        }
-      );
-
-    return `${dateText} · ${timeText}`;
-  }
-
-  function detail(
-    label: string,
-    value: string | null
-  ) {
-    if (!value) {
-      return null;
-    }
+    const latestChecked =
+        getLatestChecked();
 
     return (
-      <Text
-        style={styles.detail}
-      >
-        <Text
-          style={styles.detailLabel}
+        <SafeAreaView
+            style={styles.container}
         >
-          {label}:{" "}
-        </Text>
-
-        {value}
-      </Text>
-    );
-  }
-
-  return (
-    <SafeAreaView
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={
-          styles.content
-        }
-      >
-        <Pressable
-          onPress={() =>
-            router.back()
-          }
-          style={styles.backButton}
-        >
-          <Text
-            style={styles.backText}
-          >
-            ‹ Back
-          </Text>
-        </Pressable>
-
-        <View
-          style={styles.teamHeader}
-        >
-          <Text
-            style={styles.emoji}
-          >
-            {emoji}
-          </Text>
-
-          <View>
-            <Text
-              style={styles.league}
+            <ScrollView
+                contentContainerStyle={
+                    styles.content
+                }
+                refreshControl={
+                    <RefreshControl
+                        refreshing={
+                            refreshing
+                        }
+                        onRefresh={
+                            refreshInjuries
+                        }
+                    />
+                }
             >
-              NFL
-            </Text>
-
-            <Text
-              style={styles.teamName}
-            >
-              {teamName}
-            </Text>
-          </View>
-        </View>
-
-        <Text
-          style={styles.title}
-        >
-          Current Injuries
-        </Text>
-
-        <Text
-          style={styles.description}
-        >
-          Current injury and player
-          availability information.
-        </Text>
-
-        {loading ? (
-          <View
-            style={
-              styles.loadingContainer
-            }
-          >
-            <ActivityIndicator
-              size="large"
-            />
-
-            <Text
-              style={styles.loadingText}
-            >
-              Loading injuries...
-            </Text>
-          </View>
-        ) : injuries.length === 0 ? (
-          <View
-            style={styles.emptyCard}
-          >
-            <Text
-              style={styles.emptyText}
-            >
-              No current injury report
-              available yet.
-            </Text>
-          </View>
-        ) : (
-          injuries.map(
-            (injury, index) => {
-              const statusUpdated =
-                formatStatusDate(
-                  injury.statusDate
-                );
-
-              const lastChecked =
-                formatCheckedAt(
-                  injury.updatedAt
-                );
-
-              return (
-                <View
-                  key={`${injury.playerName}-${index}`}
-                  style={
-                    styles.injuryCard
-                  }
+                <Pressable
+                    onPress={() =>
+                        router.back()
+                    }
+                    style={
+                        styles.backButton
+                    }
                 >
-                  <Text
-                    style={
-                      styles.playerName
-                    }
-                  >
-                    {injury.playerName}
-                  </Text>
-
-                  {detail(
-                    "Injury",
-                    injury.injury
-                  )}
-
-                  {detail(
-                    "Secondary",
-                    injury.secondaryInjury
-                  )}
-
-                  {detail(
-                    "Game status",
-                    injury.gameStatus
-                  )}
-
-                  {detail(
-                    "Practice",
-                    injury.practiceStatus
-                  )}
-
-                  {detail(
-                    "Estimated return",
-                    injury.estimatedReturnDate
-                  )}
-
-                  <View
-                    style={
-                      styles.timestampSection
-                    }
-                  >
-                    {statusUpdated && (
-                      <Text
+                    <Text
                         style={
-                          styles.timestamp
+                            styles.backText
                         }
-                      >
-                        Status updated{" "}
-                        {statusUpdated}
-                      </Text>
-                    )}
+                    >
+                        ‹ Back
+                    </Text>
+                </Pressable>
 
-                    {lastChecked && (
-                      <Text
+                <View
+                    style={
+                        styles.teamHeader
+                    }
+                >
+                    <Text
+                        style={styles.emoji}
+                    >
+                        {emoji}
+                    </Text>
+
+                    <View
                         style={
-                          styles.checkedTimestamp
+                            styles.teamHeaderText
                         }
-                      >
-                        Last checked{" "}
-                        {lastChecked}
-                      </Text>
-                    )}
-                  </View>
+                    >
+                        <Text
+                            style={styles.league}
+                        >
+                            NFL
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.teamName
+                            }
+                        >
+                            {teamName}
+                        </Text>
+                    </View>
                 </View>
-              );
-            }
-          )
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
+
+                <View
+                    style={
+                        styles.titleRow
+                    }
+                >
+                    <View
+                        style={
+                            styles.titleContainer
+                        }
+                    >
+                        <Text
+                            style={styles.title}
+                        >
+                            Injury Report
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.description
+                            }
+                        >
+                            Practice participation
+                            and game availability.
+                        </Text>
+                    </View>
+
+                    {weekNumber && (
+                        <View
+                            style={
+                                styles.weekBadge
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.weekBadgeText
+                                }
+                            >
+                                WEEK {weekNumber}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {latestChecked && (
+                    <Text
+                        style={
+                            styles.lastUpdated
+                        }
+                    >
+                        Last checked{" "}
+                        {latestChecked}
+                    </Text>
+                )}
+
+                {practiceDates.length > 0 && (
+                    <View
+                        style={
+                            styles.legend
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.legendText
+                            }
+                        >
+                            DNP = Did Not Participate
+                            {"  "}•{"  "}
+                            LP = Limited
+                            {"  "}•{"  "}
+                            FP = Full
+                        </Text>
+                    </View>
+                )}
+
+                {loading ? (
+                    <View
+                        style={
+                            styles.loadingContainer
+                        }
+                    >
+                        <ActivityIndicator
+                            size="large"
+                        />
+
+                        <Text
+                            style={
+                                styles.loadingText
+                            }
+                        >
+                            Loading injuries...
+                        </Text>
+                    </View>
+                ) : injuries.length === 0 ? (
+                    <View
+                        style={
+                            styles.emptyCard
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.emptyTitle
+                            }
+                        >
+                            No injury report yet
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.emptyText
+                            }
+                        >
+                            The current week's
+                            injury report has not
+                            been published yet.
+                        </Text>
+                    </View>
+                ) : (
+                    injuries.map(
+                        (
+                            injury,
+                            index
+                        ) => (
+                            <View
+                                key={
+                                    `${injury.playerName}-${index}`
+                                }
+                                style={
+                                    styles.injuryCard
+                                }
+                            >
+                                <View
+                                    style={
+                                        styles.playerHeader
+                                    }
+                                >
+                                    <View
+                                        style={
+                                            styles.playerInfo
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.playerName
+                                            }
+                                        >
+                                            {
+                                                injury.playerName
+                                            }
+                                        </Text>
+
+                                        <Text
+                                            style={
+                                                styles.injuryText
+                                            }
+                                        >
+                                            {
+                                                getInjuryDescription(
+                                                    injury
+                                                )
+                                            }
+                                        </Text>
+                                    </View>
+
+                                    {injury.position && (
+                                        <View
+                                            style={
+                                                styles.positionBadge
+                                            }
+                                        >
+                                            <Text
+                                                style={
+                                                    styles.positionText
+                                                }
+                                            >
+                                                {
+                                                    injury.position
+                                                }
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                <View
+                                    style={
+                                        styles.statusDivider
+                                    }
+                                />
+
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={
+                                        false
+                                    }
+                                    contentContainerStyle={
+                                        styles.statusRow
+                                    }
+                                >
+                                    {practiceDates.map(
+                                        reportDate => (
+                                            <View
+                                                key={
+                                                    reportDate
+                                                }
+                                                style={
+                                                    styles.statusColumn
+                                                }
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.statusLabel
+                                                    }
+                                                >
+                                                    {
+                                                        formatDay(
+                                                            reportDate
+                                                        )
+                                                    }
+                                                </Text>
+
+                                                <Text
+                                                    style={
+                                                        styles.statusDate
+                                                    }
+                                                >
+                                                    {
+                                                        formatShortDate(
+                                                            reportDate
+                                                        )
+                                                    }
+                                                </Text>
+
+                                                <View
+                                                    style={
+                                                        styles.statusValueBox
+                                                    }
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.statusValue
+                                                        }
+                                                    >
+                                                        {
+                                                            getPracticeStatus(
+                                                                injury,
+                                                                reportDate
+                                                            )
+                                                        }
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )
+                                    )}
+
+                                    <View
+                                        style={
+                                            styles.gameColumn
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.statusLabel
+                                            }
+                                        >
+                                            GAME
+                                        </Text>
+
+                                        <Text
+                                            style={
+                                                styles.statusDate
+                                            }
+                                        >
+                                            STATUS
+                                        </Text>
+
+                                        <View
+                                            style={
+                                                styles.gameStatusBox
+                                            }
+                                        >
+                                            <Text
+                                                style={
+                                                    styles.gameStatusText
+                                                }
+                                            >
+                                                {
+                                                    injury.gameStatus ||
+                                                    "—"
+                                                }
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </ScrollView>
+
+                                {injury.estimatedReturnDate && (
+                                    <Text
+                                        style={
+                                            styles.returnText
+                                        }
+                                    >
+                                        Estimated return:{" "}
+                                        {
+                                            injury.estimatedReturnDate
+                                        }
+                                    </Text>
+                                )}
+                            </View>
+                        )
+                    )
+                )}
+            </ScrollView>
+        </SafeAreaView>
+    );
 }
 
 const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#F5F7FA",
-    },
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor:
+                "#F5F7FA",
+        },
 
-    content: {
-      paddingHorizontal: 22,
-      paddingTop: 20,
-      paddingBottom: 40,
-    },
+        content: {
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 40,
+        },
 
-    backButton: {
-      marginBottom: 22,
-    },
+        backButton: {
+            marginBottom: 20,
+        },
 
-    backText: {
-      fontSize: 17,
-      fontWeight: "600",
-      color: "#475569",
-    },
+        backText: {
+            fontSize: 17,
+            fontWeight: "600",
+            color: "#475569",
+        },
 
-    teamHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 30,
-    },
+        teamHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 24,
+        },
 
-    emoji: {
-      fontSize: 42,
-      marginRight: 15,
-    },
+        teamHeaderText: {
+            flex: 1,
+        },
 
-    league: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: "#64748B",
-      marginBottom: 3,
-    },
+        emoji: {
+            fontSize: 42,
+            marginRight: 14,
+        },
 
-    teamName: {
-      fontSize: 25,
-      fontWeight: "800",
-      color: "#0F172A",
-    },
+        league: {
+            fontSize: 13,
+            fontWeight: "700",
+            color: "#64748B",
+            marginBottom: 3,
+        },
 
-    title: {
-      fontSize: 22,
-      fontWeight: "800",
-      color: "#0F172A",
-    },
+        teamName: {
+            fontSize: 25,
+            fontWeight: "800",
+            color: "#0F172A",
+        },
 
-    description: {
-      fontSize: 15,
-      lineHeight: 21,
-      color: "#64748B",
-      marginTop: 6,
-      marginBottom: 20,
-    },
+        titleRow: {
+            flexDirection: "row",
+            justifyContent:
+                "space-between",
+            alignItems: "flex-start",
+            marginBottom: 8,
+        },
 
-    loadingContainer: {
-      alignItems: "center",
-      paddingVertical: 40,
-    },
+        titleContainer: {
+            flex: 1,
+            paddingRight: 12,
+        },
 
-    loadingText: {
-      marginTop: 10,
-      color: "#64748B",
-    },
+        title: {
+            fontSize: 24,
+            fontWeight: "800",
+            color: "#0F172A",
+        },
 
-    injuryCard: {
-      backgroundColor: "#FFFFFF",
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: "#E2E8F0",
-      padding: 18,
-      marginBottom: 12,
-    },
+        description: {
+            fontSize: 14,
+            lineHeight: 20,
+            color: "#64748B",
+            marginTop: 5,
+        },
 
-    playerName: {
-      fontSize: 18,
-      fontWeight: "800",
-      color: "#0F172A",
-      marginBottom: 9,
-    },
+        weekBadge: {
+            backgroundColor:
+                "#E2E8F0",
+            borderRadius: 10,
+            paddingHorizontal: 10,
+            paddingVertical: 7,
+        },
 
-    detail: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: "#475569",
-    },
+        weekBadgeText: {
+            fontSize: 12,
+            fontWeight: "800",
+            color: "#334155",
+        },
 
-    detailLabel: {
-      fontWeight: "700",
-      color: "#334155",
-    },
+        lastUpdated: {
+            fontSize: 12,
+            color: "#94A3B8",
+            marginBottom: 14,
+        },
 
-    timestampSection: {
-      marginTop: 12,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: "#E2E8F0",
-    },
+        legend: {
+            backgroundColor:
+                "#EEF2F7",
+            borderRadius: 10,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            marginBottom: 14,
+        },
 
-    timestamp: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: "#64748B",
-    },
+        legendText: {
+            fontSize: 11,
+            lineHeight: 16,
+            fontWeight: "600",
+            color: "#64748B",
+        },
 
-    checkedTimestamp: {
-      fontSize: 12,
-      color: "#94A3B8",
-      marginTop: 3,
-    },
+        loadingContainer: {
+            alignItems: "center",
+            paddingVertical: 50,
+        },
 
-    emptyCard: {
-      backgroundColor: "#FFFFFF",
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: "#E2E8F0",
-      padding: 20,
-    },
+        loadingText: {
+            marginTop: 10,
+            color: "#64748B",
+        },
 
-    emptyText: {
-      color: "#64748B",
-      fontSize: 15,
-    },
-  });
+        emptyCard: {
+            backgroundColor:
+                "#FFFFFF",
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            padding: 22,
+        },
+
+        emptyTitle: {
+            fontSize: 17,
+            fontWeight: "800",
+            color: "#0F172A",
+            marginBottom: 5,
+        },
+
+        emptyText: {
+            color: "#64748B",
+            fontSize: 14,
+            lineHeight: 20,
+        },
+
+        injuryCard: {
+            backgroundColor:
+                "#FFFFFF",
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            padding: 16,
+            marginBottom: 12,
+        },
+
+        playerHeader: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent:
+                "space-between",
+        },
+
+        playerInfo: {
+            flex: 1,
+            paddingRight: 12,
+        },
+
+        playerName: {
+            fontSize: 17,
+            fontWeight: "800",
+            color: "#0F172A",
+        },
+
+        injuryText: {
+            fontSize: 14,
+            color: "#64748B",
+            marginTop: 3,
+        },
+
+        positionBadge: {
+            backgroundColor:
+                "#F1F5F9",
+            borderRadius: 8,
+            paddingHorizontal: 9,
+            paddingVertical: 5,
+        },
+
+        positionText: {
+            fontSize: 12,
+            fontWeight: "800",
+            color: "#475569",
+        },
+
+        statusDivider: {
+            height: 1,
+            backgroundColor:
+                "#E2E8F0",
+            marginTop: 14,
+            marginBottom: 12,
+        },
+
+        statusRow: {
+            alignItems: "stretch",
+            paddingRight: 4,
+        },
+
+        statusColumn: {
+            width: 70,
+            marginRight: 8,
+            alignItems: "center",
+        },
+
+        gameColumn: {
+            minWidth: 110,
+            alignItems: "center",
+        },
+
+        statusLabel: {
+            fontSize: 11,
+            fontWeight: "800",
+            color: "#475569",
+        },
+
+        statusDate: {
+            fontSize: 10,
+            color: "#94A3B8",
+            marginTop: 2,
+            marginBottom: 7,
+        },
+
+        statusValueBox: {
+            minWidth: 58,
+            backgroundColor:
+                "#F1F5F9",
+            borderRadius: 9,
+            paddingVertical: 8,
+            paddingHorizontal: 8,
+            alignItems: "center",
+        },
+
+        statusValue: {
+            fontSize: 13,
+            fontWeight: "800",
+            color: "#0F172A",
+        },
+
+        gameStatusBox: {
+            minWidth: 100,
+            backgroundColor:
+                "#F1F5F9",
+            borderRadius: 9,
+            paddingVertical: 8,
+            paddingHorizontal: 9,
+            alignItems: "center",
+        },
+
+        gameStatusText: {
+            fontSize: 12,
+            fontWeight: "800",
+            color: "#0F172A",
+            textAlign: "center",
+        },
+
+        returnText: {
+            marginTop: 12,
+            fontSize: 12,
+            color: "#64748B",
+        },
+    });

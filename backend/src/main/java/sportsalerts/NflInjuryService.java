@@ -326,6 +326,10 @@ public class NflInjuryService {
                             player,
                             "name");
 
+                    String position = getText(
+                            player,
+                            "position");
+
                     JsonNode injuries = player.get(
                             "injuries");
 
@@ -380,6 +384,7 @@ public class NflInjuryService {
                                         teamName,
                                         playerId,
                                         playerName,
+                                        position,
                                         primary,
                                         secondary,
                                         gameStatus,
