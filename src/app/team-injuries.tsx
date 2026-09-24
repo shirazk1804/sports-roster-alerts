@@ -540,7 +540,7 @@ export default function TeamInjuriesScreen() {
                     )}
                 </View>
 
-                {latestChecked && (
+                {Boolean(latestChecked) && (
                     <Text
                         style={
                             styles.lastUpdated
@@ -648,7 +648,7 @@ export default function TeamInjuriesScreen() {
                                         </Text>
                                     </View>
 
-                                    {injury.position && (
+                                    {Boolean(injury.position) && (
                                         <View
                                             style={
                                                 styles.positionBadge
@@ -776,7 +776,7 @@ export default function TeamInjuriesScreen() {
                                     </View>
                                 </ScrollView>
 
-                                {injury.estimatedReturnDate && (
+                                {Boolean(injury.estimatedReturnDate) && (
                                     <Text
                                         style={
                                             styles.returnText

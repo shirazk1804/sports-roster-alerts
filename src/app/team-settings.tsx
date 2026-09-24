@@ -6,6 +6,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -155,6 +156,17 @@ export default function TeamSettingsScreen() {
     });
   }
 
+  function openTodayLineup() {
+    router.push({
+      pathname: "/team-lineup",
+
+      params: {
+        id: String(teamId),
+        name: teamName,
+      },
+    });
+  }
+
   async function saveSettings() {
     try {
       setSaving(true);
@@ -181,6 +193,18 @@ export default function TeamSettingsScreen() {
   }
 
   function confirmUnfollow() {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `Stop following ${teamName}?`
+      );
+
+      if (confirmed) {
+        void unfollowTeam();
+      }
+
+      return;
+    }
+
     Alert.alert(
       "Unfollow Team",
       `Stop following ${teamName}?`,
@@ -286,6 +310,45 @@ export default function TeamSettingsScreen() {
               >
                 View player injury and
                 availability information
+              </Text>
+            </View>
+
+            <Text
+              style={
+                styles.injuriesChevron
+              }
+            >
+              ›
+            </Text>
+          </Pressable>
+        )}
+
+        {league === "MLB" && (
+          <Pressable
+            onPress={openTodayLineup}
+            style={({ pressed }) => [
+              styles.injuriesButton,
+
+              pressed &&
+              styles.injuriesButtonPressed,
+            ]}
+          >
+            <View>
+              <Text
+                style={
+                  styles.injuriesButtonTitle
+                }
+              >
+                Today's Lineup
+              </Text>
+
+              <Text
+                style={
+                  styles.injuriesButtonSubtitle
+                }
+              >
+                View today's batting order and
+                starting pitcher
               </Text>
             </View>
 

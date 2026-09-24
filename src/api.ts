@@ -134,6 +134,31 @@ export type CurrentInjury = {
   updatedAt: string;
 };
 
+export type MlbLineupPlayer = {
+  playerId: number | null;
+  playerName: string;
+  position: string | null;
+  battingOrder: number | null;
+};
+
+export type MlbLineup = {
+  state:
+  | "NO_GAME"
+  | "NOT_POSTED"
+  | "POSTED";
+
+  gamePk: number | null;
+  gameDate: string | null;
+  gameStatus: string | null;
+  opponentName: string | null;
+  homeAway: string | null;
+
+  lineup: MlbLineupPlayer[];
+
+  startingPitcher:
+  MlbLineupPlayer | null;
+};
+
 export async function registerInstallation(
   installationId: string
 ): Promise<AppUser> {
@@ -338,6 +363,27 @@ export async function getCurrentInjuries(
   if (!response.ok) {
     throw new Error(
       `Could not load current injuries (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+export async function getMlbLineup(
+  teamId: number
+): Promise<MlbLineup> {
+
+  const response = await fetch(
+    `${API_URL}/api/followed-teams/${teamId}/lineup`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not load MLB lineup (${response.status})`
     );
   }
 
