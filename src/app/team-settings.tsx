@@ -27,6 +27,8 @@ import {
   saveAlertPreferences,
 } from "../api";
 
+import TeamLogo from "../components/TeamLogo";
+
 const leagueSettings = {
   NFL: [
     "Injury status changes",
@@ -67,17 +69,15 @@ export default function TeamSettingsScreen() {
     id: string;
     league: string;
     name: string;
-    emoji: string;
   }>();
 
   const teamId = Number(params.id);
   const league = params.league || "";
   const teamName = params.name || "";
-  const emoji = params.emoji || "";
 
   const availableSettings =
     leagueSettings[
-      league as keyof typeof leagueSettings
+    league as keyof typeof leagueSettings
     ] || [];
 
   const [settings, setSettings] =
@@ -151,7 +151,6 @@ export default function TeamSettingsScreen() {
       params: {
         id: String(teamId),
         name: teamName,
-        emoji,
       },
     });
   }
@@ -240,18 +239,20 @@ export default function TeamSettingsScreen() {
         </Pressable>
 
         <View style={styles.teamHeader}>
-          <Text style={styles.emoji}>
-            {emoji}
-          </Text>
+          <View style={styles.logoWrapper}>
+            <TeamLogo
+              league={league}
+              teamName={teamName}
+              size={62}
+            />
+          </View>
 
           <View>
             <Text style={styles.league}>
               {league}
             </Text>
 
-            <Text
-              style={styles.teamName}
-            >
+            <Text style={styles.teamName}>
               {teamName}
             </Text>
           </View>
@@ -266,7 +267,7 @@ export default function TeamSettingsScreen() {
               styles.injuriesButton,
 
               pressed &&
-                styles.injuriesButtonPressed,
+              styles.injuriesButtonPressed,
             ]}
           >
             <View>
@@ -338,9 +339,9 @@ export default function TeamSettingsScreen() {
                     styles.settingRow,
 
                     index !==
-                      availableSettings.length -
-                        1 &&
-                      styles.settingBorder,
+                    availableSettings.length -
+                    1 &&
+                    styles.settingBorder,
                   ]}
                 >
                   <Text
@@ -354,7 +355,7 @@ export default function TeamSettingsScreen() {
                   <Switch
                     value={
                       settings[
-                        setting
+                      setting
                       ] ?? true
                     }
                     onValueChange={() =>
@@ -395,10 +396,10 @@ export default function TeamSettingsScreen() {
             styles.saveButton,
 
             pressed &&
-              styles.saveButtonPressed,
+            styles.saveButtonPressed,
 
             (loading || saving) &&
-              styles.saveButtonDisabled,
+            styles.saveButtonDisabled,
           ]}
         >
           <Text
@@ -442,8 +443,7 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
 
-  emoji: {
-    fontSize: 42,
+  logoWrapper: {
     marginRight: 15,
   },
 

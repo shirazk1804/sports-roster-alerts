@@ -93,6 +93,11 @@ export type InjuryPracticeReport = {
 export type CurrentInjury = {
   playerName: string;
 
+  playerProviderId: string;
+
+  headshotUrl: 
+  string | null;
+
   position:
   string | null;
 

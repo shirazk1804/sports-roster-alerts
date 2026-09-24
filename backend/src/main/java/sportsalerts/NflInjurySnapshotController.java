@@ -13,144 +13,100 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping(
-    "/api/followed-teams"
-)
+@RequestMapping("/api/followed-teams")
 public class NflInjurySnapshotController {
 
-    private final FollowedTeamRepository
-        followedTeamRepository;
+    private final FollowedTeamRepository followedTeamRepository;
 
-    private final TeamRepository
-        teamRepository;
+    private final TeamRepository teamRepository;
 
-    private final NflInjurySnapshotRepository
-        snapshotRepository;
+    private final NflInjurySnapshotRepository snapshotRepository;
 
-    private final NflInjuryPracticeReportRepository
-        practiceReportRepository;
+    private final NflInjuryPracticeReportRepository practiceReportRepository;
 
-    private final AppUserService
-        appUserService;
+    private final AppUserService appUserService;
+
+    private final NflPlayerImageService nflPlayerImageService;
 
     public NflInjurySnapshotController(
-        FollowedTeamRepository followedTeamRepository,
-        TeamRepository teamRepository,
-        NflInjurySnapshotRepository snapshotRepository,
-        NflInjuryPracticeReportRepository practiceReportRepository,
-        AppUserService appUserService
-    ) {
-        this.followedTeamRepository =
-            followedTeamRepository;
+            FollowedTeamRepository followedTeamRepository,
+            TeamRepository teamRepository,
+            NflInjurySnapshotRepository snapshotRepository,
+            NflInjuryPracticeReportRepository practiceReportRepository,
+            AppUserService appUserService,
+            NflPlayerImageService nflPlayerImageService) {
+        this.followedTeamRepository = followedTeamRepository;
 
-        this.teamRepository =
-            teamRepository;
+        this.teamRepository = teamRepository;
 
-        this.snapshotRepository =
-            snapshotRepository;
+        this.snapshotRepository = snapshotRepository;
 
-        this.practiceReportRepository =
-            practiceReportRepository;
+        this.practiceReportRepository = practiceReportRepository;
 
-        this.appUserService =
-            appUserService;
+        this.appUserService = appUserService;
+
+        this.nflPlayerImageService = nflPlayerImageService;
     }
 
-    @GetMapping(
-        "/{followedTeamId}/injuries"
-    )
-    public List<NflInjurySnapshotResponse>
-        getCurrentInjuries(
-            @PathVariable
-            Long followedTeamId,
+    @GetMapping("/{followedTeamId}/injuries")
+    public List<NflInjurySnapshotResponse> getCurrentInjuries(
+            @PathVariable Long followedTeamId,
 
-            @RequestHeader(
-                value = "Authorization",
-                required = false
-            )
-            String authorizationHeader
-        ) {
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
 
-        AppUser user =
-            appUserService
+        AppUser user = appUserService
                 .requireAuthenticatedUser(
-                    authorizationHeader
-                );
+                        authorizationHeader);
 
-        FollowedTeam followedTeam =
-            followedTeamRepository
+        FollowedTeam followedTeam = followedTeamRepository
                 .findById(
-                    followedTeamId
-                )
+                        followedTeamId)
                 .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND
-                        )
-                );
+                        () -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND));
 
         /*
          * Do not expose another user's
          * followed-team data.
          */
-        if (
-            followedTeam.getAppUser()
-                == null ||
-            !followedTeam
-                .getAppUser()
-                .getId()
-                .equals(
-                    user.getId()
-                )
-        ) {
+        if (followedTeam.getAppUser() == null ||
+                !followedTeam
+                        .getAppUser()
+                        .getId()
+                        .equals(
+                                user.getId())) {
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND
-            );
+                    HttpStatus.NOT_FOUND);
         }
 
-        if (
-            !"NFL".equals(
-                followedTeam.getLeague()
-            )
-        ) {
+        if (!"NFL".equals(
+                followedTeam.getLeague())) {
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Current injury reports are only available for NFL teams"
-            );
+                    HttpStatus.BAD_REQUEST,
+                    "Current injury reports are only available for NFL teams");
         }
 
-        Team team =
-            teamRepository
+        Team team = teamRepository
                 .findByLeagueAndName(
-                    "NFL",
-                    followedTeam.getName()
-                )
+                        "NFL",
+                        followedTeam.getName())
                 .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "NFL team not found"
-                        )
-                );
+                        () -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "NFL team not found"));
 
-        String providerTeamId =
-            team.getExternalProviderId();
+        String providerTeamId = team.getExternalProviderId();
 
-        if (
-            providerTeamId == null ||
-            providerTeamId.isBlank()
-        ) {
+        if (providerTeamId == null ||
+                providerTeamId.isBlank()) {
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "NFL provider team ID not found"
-            );
+                    HttpStatus.NOT_FOUND,
+                    "NFL provider team ID not found");
         }
 
-        List<NflInjurySnapshot> snapshots =
-            snapshotRepository
+        List<NflInjurySnapshot> snapshots = snapshotRepository
                 .findByExternalProviderTeamIdOrderByPlayerNameAsc(
-                    providerTeamId
-                );
+                        providerTeamId);
 
         /*
          * No current injury report has been
@@ -165,23 +121,17 @@ public class NflInjurySnapshotController {
          * the NFL week changes, so all current
          * rows should belong to the same week.
          */
-        NflInjurySnapshot firstSnapshot =
-            snapshots.get(0);
+        NflInjurySnapshot firstSnapshot = snapshots.get(0);
 
-        Integer seasonYear =
-            firstSnapshot.getSeasonYear();
+        Integer seasonYear = firstSnapshot.getSeasonYear();
 
-        String seasonType =
-            firstSnapshot.getSeasonType();
+        String seasonType = firstSnapshot.getSeasonType();
 
-        Integer weekNumber =
-            firstSnapshot.getWeekNumber();
+        Integer weekNumber = firstSnapshot.getWeekNumber();
 
-        if (
-            seasonYear == null ||
-            seasonType == null ||
-            weekNumber == null
-        ) {
+        if (seasonYear == null ||
+                seasonType == null ||
+                weekNumber == null) {
             return List.of();
         }
 
@@ -189,85 +139,68 @@ public class NflInjurySnapshotController {
          * Load the entire week's practice
          * history in one database query.
          */
-        List<NflInjuryPracticeReport>
-            weeklyPracticeReports =
-                practiceReportRepository
-                    .findByExternalProviderTeamIdAndSeasonYearAndSeasonTypeAndWeekNumberOrderByPlayerNameAscReportDateAsc(
+        List<NflInjuryPracticeReport> weeklyPracticeReports = practiceReportRepository
+                .findByExternalProviderTeamIdAndSeasonYearAndSeasonTypeAndWeekNumberOrderByPlayerNameAscReportDateAsc(
                         providerTeamId,
                         seasonYear,
                         seasonType,
-                        weekNumber
-                    );
+                        weekNumber);
 
         /*
          * Group each player's Wednesday /
          * Thursday / Friday/etc. reports.
          */
-        Map<String, List<NflInjuryPracticeReport>>
-            reportsByPlayer =
-                weeklyPracticeReports
-                    .stream()
-                    .collect(
+        Map<String, List<NflInjuryPracticeReport>> reportsByPlayer = weeklyPracticeReports
+                .stream()
+                .collect(
                         Collectors.groupingBy(
-                            NflInjuryPracticeReport::
-                                getPlayerProviderId
-                        )
-                    );
+                                NflInjuryPracticeReport::getPlayerProviderId));
 
         return snapshots
-            .stream()
-            .map(
-                snapshot -> {
+                .stream()
+                .map(
+                        snapshot -> {
 
-                    List<NflInjuryPracticeReport>
-                        playerReports =
-                            reportsByPlayer
-                                .getOrDefault(
-                                    snapshot
-                                        .getPlayerProviderId(),
-                                    List.of()
-                                );
+                            List<NflInjuryPracticeReport> playerReports = reportsByPlayer
+                                    .getOrDefault(
+                                            snapshot
+                                                    .getPlayerProviderId(),
+                                            List.of());
 
-                    String position =
-                        getLatestPosition(
-                            playerReports
-                        );
+                            String position = getLatestPosition(
+                                    playerReports);
 
-                    List<NflInjuryPracticeDayResponse>
-                        practiceDays =
-                            playerReports
-                                .stream()
-                                .map(
-                                    report ->
-                                        new NflInjuryPracticeDayResponse(
-                                            report.getReportDate(),
-                                            report.getPracticeStatus()
-                                        )
-                                )
-                                .toList();
+                            List<NflInjuryPracticeDayResponse> practiceDays = playerReports
+                                    .stream()
+                                    .map(
+                                            report -> new NflInjuryPracticeDayResponse(
+                                                    report.getReportDate(),
+                                                    report.getPracticeStatus()))
+                                    .toList();
 
-                    return new NflInjurySnapshotResponse(
-                        snapshot.getPlayerName(),
-                        position,
-                        snapshot.getSeasonYear(),
-                        snapshot.getSeasonType(),
-                        snapshot.getWeekNumber(),
-                        snapshot.getInjury(),
-                        snapshot.getSecondaryInjury(),
-                        snapshot.getGameStatus(),
-                        snapshot.getStatusDate(),
-                        snapshot.getEstimatedReturnDate(),
-                        practiceDays,
-                        snapshot.getUpdatedAt()
-                    );
-                }
-            )
-            .toList();
+                            return new NflInjurySnapshotResponse(
+                                    snapshot.getPlayerName(),
+                                    snapshot.getPlayerProviderId(),
+                                    nflPlayerImageService
+                                            .getHeadshotUrl(
+                                                    snapshot.getPlayerProviderId()),
+                                    position,
+                                    snapshot.getSeasonYear(),
+                                    snapshot.getSeasonType(),
+                                    snapshot.getWeekNumber(),
+                                    snapshot.getInjury(),
+                                    snapshot.getSecondaryInjury(),
+                                    snapshot.getGameStatus(),
+                                    snapshot.getStatusDate(),
+                                    snapshot.getEstimatedReturnDate(),
+                                    practiceDays,
+                                    snapshot.getUpdatedAt());
+                        })
+                .toList();
     }
 
     private String getLatestPosition(
-        List<NflInjuryPracticeReport> reports
-    ) {
+            List<NflInjuryPracticeReport> reports) {
 
         /*
          * Repository results are ordered by
@@ -277,17 +210,11 @@ public class NflInjurySnapshotController {
          */
         String latestPosition = "";
 
-        for (
-            NflInjuryPracticeReport report :
-            reports
-        ) {
-            if (
-                report.getPosition() != null &&
-                !report.getPosition()
-                    .isBlank()
-            ) {
-                latestPosition =
-                    report.getPosition();
+        for (NflInjuryPracticeReport report : reports) {
+            if (report.getPosition() != null &&
+                    !report.getPosition()
+                            .isBlank()) {
+                latestPosition = report.getPosition();
             }
         }
 

@@ -23,10 +23,11 @@ import {
   RosterEvent,
 } from "../api";
 
+import TeamLogo from "../components/TeamLogo";
+
 function formatDetectedTime(
   createdAt: string
 ): string {
-
   const utcDate =
     new Date(
       createdAt.endsWith("Z")
@@ -50,7 +51,11 @@ function formatEventDate(
     eventDate.split("-").map(Number);
 
   const date =
-    new Date(year, month - 1, day);
+    new Date(
+      year,
+      month - 1,
+      day
+    );
 
   return date.toLocaleDateString(
     undefined,
@@ -161,28 +166,9 @@ const eventLabels:
     "Injury Status Update",
 };
 
-function getLeagueEmoji(
-  league: string
-): string {
-  switch (
-  league.toUpperCase()
-  ) {
-    case "NFL":
-      return "🏈";
-
-    case "NBA":
-      return "🏀";
-
-    case "MLB":
-      return "⚾";
-
-    default:
-      return "🏟️";
-  }
-}
-
 export default function AlertsScreen() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const [events, setEvents] =
     useState<RosterEvent[]>([]);
@@ -207,35 +193,22 @@ export default function AlertsScreen() {
       const savedEvents =
         await getRosterEvents();
 
-      setEvents(savedEvents);
+      setEvents(
+        savedEvents
+      );
+
     } catch (error) {
+
       const message =
         error instanceof Error
           ? error.message
           : "Could not load alerts.";
 
       setError(message);
+
     } finally {
       setLoading(false);
     }
-  }
-
-  function formatDate(
-    date: string
-  ) {
-    const parsedDate =
-      new Date(
-        `${date}T12:00:00`
-      );
-
-    return parsedDate.toLocaleDateString(
-      "en-US",
-      {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
   }
 
   return (
@@ -253,20 +226,28 @@ export default function AlertsScreen() {
           }
           style={styles.backButton}
         >
-          <Text style={styles.backText}>
+          <Text
+            style={styles.backText}
+          >
             ‹ Back
           </Text>
         </Pressable>
 
-        <Text style={styles.eyebrow}>
+        <Text
+          style={styles.eyebrow}
+        >
           SPORTS ROSTER ALERTS
         </Text>
 
-        <Text style={styles.title}>
+        <Text
+          style={styles.title}
+        >
           Recent Alerts
         </Text>
 
-        <Text style={styles.subtitle}>
+        <Text
+          style={styles.subtitle}
+        >
           Recent roster and player
           availability changes.
         </Text>
@@ -282,7 +263,9 @@ export default function AlertsScreen() {
             />
 
             <Text
-              style={styles.loadingText}
+              style={
+                styles.loadingText
+              }
             >
               Loading alerts...
             </Text>
@@ -290,7 +273,9 @@ export default function AlertsScreen() {
         )}
 
         {error !== "" && (
-          <Text style={styles.error}>
+          <Text
+            style={styles.error}
+          >
             {error}
           </Text>
         )}
@@ -298,193 +283,226 @@ export default function AlertsScreen() {
         {!loading &&
           error === "" &&
           events.length === 0 && (
-            <Text style={styles.empty}>
+            <Text
+              style={styles.empty}
+            >
               No alerts yet.
             </Text>
           )}
 
-        {events.map((event) => (
-          <View
-            key={event.id}
-            style={styles.alertCard}
-          >
+        {events.map(
+          (event) => (
             <View
-              style={styles.alertHeader}
+              key={event.id}
+              style={
+                styles.alertCard
+              }
             >
-              <Text
-                style={styles.emoji}
+              <View
+                style={
+                  styles.alertHeader
+                }
               >
-                {getLeagueEmoji(
-                  event.league
-                )}
+                <TeamLogo
+                  league={
+                    event.league
+                  }
+                  teamName={
+                    event.teamName
+                  }
+                />
+
+                <View
+                  style={
+                    styles.headerText
+                  }
+                >
+                  <Text
+                    style={
+                      styles.team
+                    }
+                  >
+                    {
+                      event.teamName
+                    }
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.date
+                    }
+                  >
+                    {formatEventDate(
+                      event.eventDate
+                    )}
+                    {" · "}
+                    {formatDetectedTime(
+                      event.createdAt
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={
+                  styles.eventType
+                }
+              >
+                {
+                  eventLabels[
+                  event.eventType
+                  ] ||
+                  event.eventType
+                    .replace(
+                      /_/g,
+                      " "
+                    )
+                }
               </Text>
 
-              <View
-                style={styles.headerText}
+              <Text
+                style={
+                  styles.playerName
+                }
               >
-                <Text
-                  style={styles.team}
-                >
-                  {event.teamName}
-                </Text>
+                {event.playerName}
+              </Text>
 
-                <Text>
-                  {formatEventDate(event.eventDate)}
-                  {" · "}
-                  {formatDetectedTime(event.createdAt)}
-                </Text>
-              </View>
+              <Text
+                style={
+                  styles.description
+                }
+              >
+                {event.description}
+              </Text>
             </View>
-
-            <Text
-              style={styles.eventType}
-            >
-              {eventLabels[
-                event.eventType
-              ] ||
-                event.eventType.replace(
-                  /_/g,
-                  " "
-                )}
-            </Text>
-
-            <Text
-              style={styles.playerName}
-            >
-              {event.playerName}
-            </Text>
-
-            <Text
-              style={styles.description}
-            >
-              {event.description}
-            </Text>
-          </View>
-        ))}
+          )
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FA",
-  },
+const styles =
+  StyleSheet.create({
 
-  content: {
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    container: {
+      flex: 1,
+      backgroundColor:
+        "#F5F7FA",
+    },
 
-  backButton: {
-    marginBottom: 24,
-  },
+    content: {
+      paddingHorizontal: 22,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  backText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#475569",
-  },
+    backButton: {
+      marginBottom: 24,
+    },
 
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    color: "#64748B",
-    marginBottom: 8,
-  },
+    backText: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#475569",
+    },
 
-  title: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+    eyebrow: {
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 1.5,
+      color: "#64748B",
+      marginBottom: 8,
+    },
 
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#64748B",
-    marginTop: 7,
-    marginBottom: 24,
-  },
+    title: {
+      fontSize: 32,
+      fontWeight: "800",
+      color: "#0F172A",
+    },
 
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
+    subtitle: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: "#64748B",
+      marginTop: 7,
+      marginBottom: 24,
+    },
 
-  loadingText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#64748B",
-  },
+    loadingContainer: {
+      alignItems: "center",
+      paddingVertical: 40,
+    },
 
-  error: {
-    color: "#DC2626",
-    fontSize: 15,
-  },
+    loadingText: {
+      marginTop: 10,
+      fontSize: 14,
+      color: "#64748B",
+    },
 
-  empty: {
-    fontSize: 15,
-    color: "#64748B",
-  },
+    error: {
+      color: "#DC2626",
+      fontSize: 15,
+    },
 
-  alertCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 18,
-    marginBottom: 14,
-  },
+    empty: {
+      fontSize: 15,
+      color: "#64748B",
+    },
 
-  alertHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
+    alertCard: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor:
+        "#E2E8F0",
+      padding: 18,
+      marginBottom: 14,
+    },
 
-  emoji: {
-    fontSize: 28,
-    marginRight: 12,
-  },
+    alertHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 14,
+    },
 
-  headerText: {
-    flex: 1,
-  },
+    headerText: {
+      flex: 1,
+    },
 
-  team: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
+    team: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: "#0F172A",
+    },
 
-  date: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 2,
-  },
+    date: {
+      fontSize: 12,
+      color: "#64748B",
+      marginTop: 2,
+    },
 
-  eventType: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#475569",
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
+    eventType: {
+      fontSize: 12,
+      fontWeight: "800",
+      color: "#475569",
+      textTransform:
+        "uppercase",
+      marginBottom: 6,
+    },
 
-  playerName: {
-    fontSize: 19,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 6,
-  },
+    playerName: {
+      fontSize: 19,
+      fontWeight: "800",
+      color: "#0F172A",
+      marginBottom: 6,
+    },
 
-  description: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#475569",
-  },
-}); 
+    description: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: "#475569",
+    },
+  });

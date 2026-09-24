@@ -22,11 +22,7 @@ import {
   getFollowedTeams,
 } from "../api";
 
-const leagueEmoji: Record<string, string> = {
-  NFL: "🏈",
-  MLB: "⚾",
-  NBA: "🏀",
-};
+import TeamLogo from "../components/TeamLogo";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -75,8 +71,6 @@ export default function HomeScreen() {
         id: String(team.id),
         league: team.league,
         name: team.name,
-        emoji:
-          leagueEmoji[team.league] || "🏟️",
       },
     });
   }
@@ -143,14 +137,17 @@ export default function HomeScreen() {
             style={({ pressed }) => [
               styles.teamCard,
               pressed &&
-                styles.teamCardPressed,
+              styles.teamCardPressed,
             ]}
           >
             <View style={styles.teamHeader}>
-              <Text style={styles.sportEmoji}>
-                {leagueEmoji[team.league] ||
-                  "🏟️"}
-              </Text>
+              <View style={styles.logoWrapper}>
+                <TeamLogo
+                  league={team.league}
+                  teamName={team.name}
+                  size={52}
+                />
+              </View>
 
               <View style={styles.teamText}>
                 <Text style={styles.league}>
@@ -178,7 +175,7 @@ export default function HomeScreen() {
           style={({ pressed }) => [
             styles.followButton,
             pressed &&
-              styles.followButtonPressed,
+            styles.followButtonPressed,
           ]}
         >
           <Text
@@ -279,8 +276,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  sportEmoji: {
-    fontSize: 34,
+  logoWrapper: {
     marginRight: 14,
   },
 

@@ -6,6 +6,7 @@ import {
 import {
     ActivityIndicator,
     Alert,
+    Image,
     Pressable,
     RefreshControl,
     SafeAreaView,
@@ -25,13 +26,61 @@ import {
     getCurrentInjuries,
 } from "../api";
 
+import TeamLogo from "../components/TeamLogo";
+
+function PlayerHeadshot({
+    name,
+    url,
+}: {
+    name: string;
+    url: string | null;
+}) {
+    const [failed, setFailed] =
+        useState(false);
+
+    const initials =
+        name
+            .split(" ")
+            .filter(Boolean)
+            .map(part => part[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase();
+
+    if (!url || failed) {
+        return (
+            <View style={styles.headshotFallback}>
+                <Text
+                    style={
+                        styles.headshotFallbackText
+                    }
+                >
+                    {initials || "NFL"}
+                </Text>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.headshotContainer}>
+            <Image
+                source={{ uri: url }}
+                style={styles.headshot}
+                resizeMode="cover"
+                onError={() =>
+                    setFailed(true)
+                }
+            />
+        </View>
+    );
+}
+
 export default function TeamInjuriesScreen() {
     const router = useRouter();
 
     const params = useLocalSearchParams<{
         id: string;
         name: string;
-        emoji: string;
     }>();
 
     const teamId =
@@ -39,9 +88,6 @@ export default function TeamInjuriesScreen() {
 
     const teamName =
         params.name || "";
-
-    const emoji =
-        params.emoji || "🏈";
 
     const [injuries, setInjuries] =
         useState<CurrentInjury[]>([]);
@@ -412,33 +458,21 @@ export default function TeamInjuriesScreen() {
                     </Text>
                 </Pressable>
 
-                <View
-                    style={
-                        styles.teamHeader
-                    }
-                >
-                    <Text
-                        style={styles.emoji}
-                    >
-                        {emoji}
-                    </Text>
+                <View style={styles.teamHeader}>
+                    <View style={styles.logoWrapper}>
+                        <TeamLogo
+                            league="NFL"
+                            teamName={teamName}
+                            size={62}
+                        />
+                    </View>
 
-                    <View
-                        style={
-                            styles.teamHeaderText
-                        }
-                    >
-                        <Text
-                            style={styles.league}
-                        >
+                    <View style={styles.teamHeaderText}>
+                        <Text style={styles.league}>
                             NFL
                         </Text>
 
-                        <Text
-                            style={
-                                styles.teamName
-                            }
-                        >
+                        <Text style={styles.teamName}>
                             {teamName}
                         </Text>
                     </View>
@@ -574,36 +608,21 @@ export default function TeamInjuriesScreen() {
                                     styles.injuryCard
                                 }
                             >
-                                <View
-                                    style={
-                                        styles.playerHeader
-                                    }
-                                >
-                                    <View
-                                        style={
-                                            styles.playerInfo
-                                        }
-                                    >
-                                        <Text
-                                            style={
-                                                styles.playerName
-                                            }
-                                        >
-                                            {
-                                                injury.playerName
-                                            }
+                                <View style={styles.playerHeader}>
+                                    <PlayerHeadshot
+                                        name={injury.playerName}
+                                        url={injury.headshotUrl}
+                                    />
+
+                                    <View style={styles.playerInfo}>
+                                        <Text style={styles.playerName}>
+                                            {injury.playerName}
                                         </Text>
 
-                                        <Text
-                                            style={
-                                                styles.injuryText
-                                            }
-                                        >
-                                            {
-                                                getInjuryDescription(
-                                                    injury
-                                                )
-                                            }
+                                        <Text style={styles.injuryText}>
+                                            {getInjuryDescription(
+                                                injury
+                                            )}
                                         </Text>
                                     </View>
 
@@ -618,9 +637,7 @@ export default function TeamInjuriesScreen() {
                                                     styles.positionText
                                                 }
                                             >
-                                                {
-                                                    injury.position
-                                                }
+                                                {injury.position}
                                             </Text>
                                         </View>
                                     )}
@@ -792,8 +809,7 @@ const styles =
             flex: 1,
         },
 
-        emoji: {
-            fontSize: 42,
+        logoWrapper: {
             marginRight: 14,
         },
 
@@ -930,6 +946,40 @@ const styles =
             fontSize: 17,
             fontWeight: "800",
             color: "#0F172A",
+        },
+
+        headshotContainer: {
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            overflow: "hidden",
+            backgroundColor: "#F1F5F9",
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            marginRight: 12,
+        },
+
+        headshot: {
+            width: "100%",
+            height: "100%",
+        },
+
+        headshotFallback: {
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: "#E2E8F0",
+            borderWidth: 1,
+            borderColor: "#CBD5E1",
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 12,
+        },
+
+        headshotFallbackText: {
+            fontSize: 14,
+            fontWeight: "800",
+            color: "#64748B",
         },
 
         injuryText: {

@@ -7,6 +7,10 @@ public record NflInjurySnapshotResponse(
 
     String playerName,
 
+    String playerProviderId,
+
+    String headshotUrl,
+
     String position,
 
     Integer seasonYear,
