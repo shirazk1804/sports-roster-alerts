@@ -95,7 +95,10 @@ export type CurrentInjury = {
 
   playerProviderId: string;
 
-  headshotUrl: 
+  headshotUrl:
+  string | null;
+
+  fallbackHeadshotUrl:
   string | null;
 
   position:

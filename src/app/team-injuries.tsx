@@ -31,12 +31,22 @@ import TeamLogo from "../components/TeamLogo";
 function PlayerHeadshot({
     name,
     url,
+    fallbackUrl,
 }: {
     name: string;
     url: string | null;
+    fallbackUrl: string | null;
 }) {
-    const [failed, setFailed] =
-        useState(false);
+    const [activeUrl, setActiveUrl] =
+        useState<string | null>(
+            url ?? fallbackUrl ?? null
+        );
+
+    useEffect(() => {
+        setActiveUrl(
+            url ?? fallbackUrl ?? null
+        );
+    }, [url, fallbackUrl]);
 
     const initials =
         name
@@ -47,7 +57,7 @@ function PlayerHeadshot({
             .join("")
             .toUpperCase();
 
-    if (!url || failed) {
+    if (!activeUrl) {
         return (
             <View style={styles.headshotFallback}>
                 <Text
@@ -64,12 +74,21 @@ function PlayerHeadshot({
     return (
         <View style={styles.headshotContainer}>
             <Image
-                source={{ uri: url }}
+                source={{ uri: activeUrl }}
                 style={styles.headshot}
                 resizeMode="cover"
-                onError={() =>
-                    setFailed(true)
-                }
+                onError={() => {
+                    if (
+                        fallbackUrl &&
+                        fallbackUrl !== activeUrl
+                    ) {
+                        setActiveUrl(
+                            fallbackUrl
+                        );
+                    } else {
+                        setActiveUrl(null);
+                    }
+                }}
             />
         </View>
     );
@@ -612,6 +631,9 @@ export default function TeamInjuriesScreen() {
                                     <PlayerHeadshot
                                         name={injury.playerName}
                                         url={injury.headshotUrl}
+                                        fallbackUrl={
+                                            injury.fallbackHeadshotUrl
+                                        }
                                     />
 
                                     <View style={styles.playerInfo}>
