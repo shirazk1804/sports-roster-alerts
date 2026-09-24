@@ -11,6 +11,8 @@ public record NflInjurySnapshotResponse(
 
     String headshotUrl,
 
+    String fallbackHeadshotUrl,
+
     String position,
 
     Integer seasonYear,

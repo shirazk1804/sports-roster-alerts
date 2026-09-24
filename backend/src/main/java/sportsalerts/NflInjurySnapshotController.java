@@ -181,9 +181,17 @@ public class NflInjurySnapshotController {
                             return new NflInjurySnapshotResponse(
                                     snapshot.getPlayerName(),
                                     snapshot.getPlayerProviderId(),
+
                                     nflPlayerImageService
                                             .getHeadshotUrl(
-                                                    snapshot.getPlayerProviderId()),
+                                                    snapshot.getPlayerProviderId(),
+                                                    snapshot.getPlayerName()),
+
+                                    nflPlayerImageService
+                                            .getFallbackHeadshotUrl(
+                                                    snapshot.getPlayerProviderId(),
+                                                    snapshot.getPlayerName()),
+
                                     position,
                                     snapshot.getSeasonYear(),
                                     snapshot.getSeasonType(),
