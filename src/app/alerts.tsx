@@ -69,6 +69,9 @@ function formatEventDate(
 const eventLabels:
   Record<string, string> = {
 
+  STARTING_LINEUP_POSTED:
+    "Starting Lineup Posted",
+
   IL_PLACEMENT:
     "Placed on Injured List",
 

@@ -79,6 +79,77 @@ public class RosterEventService {
         return savedEvents;
     }
 
+    @Transactional
+    public RosterEvent saveMlbLineupPostedEvent(
+            Long teamId,
+            String teamName,
+            Long gamePk,
+            String opponentName,
+            String homeAway,
+            LocalDate eventDate) {
+
+        String rawKey = "MLB"
+                + "|LINEUP_POSTED"
+                + "|"
+                + teamId
+                + "|"
+                + gamePk;
+
+        String dedupeKey = sha256(
+                rawKey);
+
+        if (rosterEventRepository
+                .existsByDedupeKey(
+                        dedupeKey)) {
+
+            return null;
+        }
+
+        String matchup = "";
+
+        if (opponentName != null &&
+                !opponentName.isBlank()) {
+
+            if ("HOME".equals(
+                    homeAway)) {
+
+                matchup = " vs "
+                        + opponentName;
+
+            } else if ("AWAY".equals(
+                    homeAway)) {
+
+                matchup = " at "
+                        + opponentName;
+
+            } else {
+
+                matchup = " against "
+                        + opponentName;
+            }
+        }
+
+        String description = "Today's starting lineup has been posted"
+                + matchup
+                + ".";
+
+        RosterEvent rosterEvent = new RosterEvent(
+                "MLB",
+                teamId,
+                teamName,
+                (Long) null,
+                (Long) null,
+                "Starting Lineup",
+                "STARTING_LINEUP_POSTED",
+                eventDate,
+                description,
+                dedupeKey);
+
+        return rosterEventRepository
+                .save(
+                        rosterEvent);
+    }
+
     // =========================
     // NFL
     // =========================
@@ -276,6 +347,9 @@ public class RosterEventService {
         if ("MLB".equals(league)) {
 
             return switch (eventType) {
+                
+                case "STARTING_LINEUP_POSTED" ->
+                    "Starting lineup posted";
 
                 case "IL_PLACEMENT" ->
                     "IL placements";

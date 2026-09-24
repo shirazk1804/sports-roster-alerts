@@ -42,6 +42,7 @@ const leagueSettings = {
   ],
 
   MLB: [
+    "Starting lineup posted",
     "Injury status changes",
     "IL placements",
     "IL activations",
@@ -140,7 +141,7 @@ export default function TeamSettingsScreen() {
       (currentSettings) => ({
         ...currentSettings,
         [setting]:
-          !currentSettings[setting],
+          !(currentSettings[setting] ?? true),
       })
     );
   }
