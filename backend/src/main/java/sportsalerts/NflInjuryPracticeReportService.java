@@ -1,7 +1,7 @@
 package sportsalerts;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,15 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NflInjuryPracticeReportService {
-
-    /*
-     * NFL injury reports are based around
-     * Eastern Time.
-     */
-    private static final ZoneId NFL_TIME_ZONE =
-        ZoneId.of(
-            "America/New_York"
-        );
 
     private final NflInjuryPracticeReportRepository
         reportRepository;
@@ -37,21 +28,6 @@ public class NflInjuryPracticeReportService {
         List<NflInjuryEvent> injuries
     ) {
 
-        /*
-         * This represents the day on which
-         * our backend observed this version
-         * of the weekly practice report.
-         *
-         * Do not use injury.statusDate here.
-         * Sportradar's status_date represents
-         * an injury-status update timestamp,
-         * not a dedicated practice-report date.
-         */
-        LocalDate reportDate =
-            LocalDate.now(
-                NFL_TIME_ZONE
-            );
-
         int savedOrUpdated = 0;
 
         for (
@@ -60,9 +36,8 @@ public class NflInjuryPracticeReportService {
         ) {
 
             /*
-             * A player without a practice status
-             * should not create a practice-day
-             * entry.
+             * Only save an actual practice
+             * participation report.
              */
             if (
                 injury.practiceStatus() == null ||
@@ -71,6 +46,20 @@ public class NflInjuryPracticeReportService {
             ) {
                 continue;
             }
+
+            /*
+             * Use Sportradar's status date
+             * instead of the current server date.
+             *
+             * This prevents Wednesday's report
+             * from becoming Thursday simply
+             * because it is already past midnight
+             * on the East Coast.
+             */
+            LocalDate reportDate =
+                resolveReportDate(
+                    injury
+                );
 
             Optional<NflInjuryPracticeReport>
                 existingReport =
@@ -87,12 +76,9 @@ public class NflInjuryPracticeReportService {
             if (existingReport.isPresent()) {
 
                 /*
-                 * The scheduler runs repeatedly
-                 * throughout the day.
-                 *
-                 * If Sportradar changes today's
-                 * report, update today's row
-                 * instead of creating another one.
+                 * If Sportradar changes the
+                 * report for this same day,
+                 * update the existing row.
                  */
                 NflInjuryPracticeReport report =
                     existingReport.get();
@@ -115,8 +101,8 @@ public class NflInjuryPracticeReportService {
             } else {
 
                 /*
-                 * First practice-report observation
-                 * for this player on this day.
+                 * First practice report for
+                 * this player on this date.
                  */
                 NflInjuryPracticeReport report =
                     new NflInjuryPracticeReport(
@@ -160,5 +146,37 @@ public class NflInjuryPracticeReportService {
                 week.seasonType(),
                 week.week()
             );
+    }
+
+    private LocalDate resolveReportDate(
+        NflInjuryEvent injury
+    ) {
+
+        String statusDate =
+            injury.statusDate();
+
+        if (
+            statusDate != null &&
+            statusDate.length() >= 10
+        ) {
+            try {
+                return LocalDate.parse(
+                    statusDate.substring(
+                        0,
+                        10
+                    )
+                );
+
+            } catch (Exception ignored) {
+            }
+        }
+
+        /*
+         * Fallback only if Sportradar does
+         * not provide a usable status date.
+         */
+        return LocalDate.now(
+            ZoneOffset.UTC
+        );
     }
 }
