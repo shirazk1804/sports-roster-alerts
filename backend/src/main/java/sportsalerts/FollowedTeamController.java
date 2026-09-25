@@ -19,156 +19,165 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/followed-teams")
 public class FollowedTeamController {
 
-    private final FollowedTeamRepository
-        followedTeamRepository;
+    private final FollowedTeamRepository followedTeamRepository;
 
-    private final AlertPreferenceRepository
-        alertPreferenceRepository;
+    private final AlertPreferenceRepository alertPreferenceRepository;
 
-    private final TeamRepository
-        teamRepository;
+    private final TeamRepository teamRepository;
 
-    private final MlbTransactionService
-        mlbTransactionService;
+    private final MlbTransactionService mlbTransactionService;
 
-    private final RosterEventService
-        rosterEventService;
+    private final RosterEventService rosterEventService;
 
-    private final AppUserService
-        appUserService;
+    private final AppUserService appUserService;
 
-    private final NflFollowInitializationService
-        nflFollowInitializationService;
+    private final NflFollowInitializationService nflFollowInitializationService;
 
     public FollowedTeamController(
-        FollowedTeamRepository followedTeamRepository,
-        AlertPreferenceRepository alertPreferenceRepository,
-        TeamRepository teamRepository,
-        MlbTransactionService mlbTransactionService,
-        RosterEventService rosterEventService,
-        AppUserService appUserService,
-        NflFollowInitializationService nflFollowInitializationService
-    ) {
-        this.followedTeamRepository =
-            followedTeamRepository;
+            FollowedTeamRepository followedTeamRepository,
+            AlertPreferenceRepository alertPreferenceRepository,
+            TeamRepository teamRepository,
+            MlbTransactionService mlbTransactionService,
+            RosterEventService rosterEventService,
+            AppUserService appUserService,
+            NflFollowInitializationService nflFollowInitializationService) {
+        this.followedTeamRepository = followedTeamRepository;
 
-        this.alertPreferenceRepository =
-            alertPreferenceRepository;
+        this.alertPreferenceRepository = alertPreferenceRepository;
 
-        this.teamRepository =
-            teamRepository;
+        this.teamRepository = teamRepository;
 
-        this.mlbTransactionService =
-            mlbTransactionService;
+        this.mlbTransactionService = mlbTransactionService;
 
-        this.rosterEventService =
-            rosterEventService;
+        this.rosterEventService = rosterEventService;
 
-        this.appUserService =
-            appUserService;
+        this.appUserService = appUserService;
 
-        this.nflFollowInitializationService =
-            nflFollowInitializationService;
+        this.nflFollowInitializationService = nflFollowInitializationService;
     }
 
     @GetMapping
     public List<FollowedTeam> getFollowedTeams(
-        @RequestHeader(
-            value = "Authorization",
-            required = false
-        )
-        String authorizationHeader
-    ) {
-        AppUser user =
-            appUserService
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        AppUser user = appUserService
                 .requireAuthenticatedUser(
-                    authorizationHeader
-                );
+                        authorizationHeader);
 
         return followedTeamRepository
-            .findByAppUserId(
-                user.getId()
-            );
+                .findByAppUserId(
+                        user.getId());
     }
 
     @PostMapping
     public FollowedTeam followTeam(
-        @RequestHeader(
-            value = "Authorization",
-            required = false
-        )
-        String authorizationHeader,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 
-        @RequestBody
-        FollowedTeam followedTeam
-    ) {
-        AppUser user =
-            appUserService
+            @RequestBody FollowTeamRequest request) {
+
+        AppUser user = appUserService
                 .requireAuthenticatedUser(
-                    authorizationHeader
-                );
+                        authorizationHeader);
 
-        boolean alreadyFollowing =
-            followedTeamRepository
-                .existsByAppUserIdAndLeagueAndName(
-                    user.getId(),
-                    followedTeam.getLeague(),
-                    followedTeam.getName()
-                );
+        if (request == null ||
+                request.league() == null ||
+                request.league().isBlank() ||
+                request.name() == null ||
+                request.name().isBlank()) {
 
-        if (alreadyFollowing) {
-            return followedTeamRepository
-                .findByAppUserIdAndLeagueAndName(
-                    user.getId(),
-                    followedTeam.getLeague(),
-                    followedTeam.getName()
-                )
-                .orElseThrow();
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "League and team name are required");
         }
 
-        followedTeam.setAppUser(
-            user
-        );
+        String league = request.league()
+                .trim()
+                .toUpperCase();
 
-        FollowedTeam savedTeam =
-            followedTeamRepository.save(
-                followedTeam
-            );
+        String name = request.name()
+                .trim();
+
+        /*
+         * Reject excessively large input before
+         * doing any database/provider work.
+         */
+        if (league.length() > 10 ||
+                name.length() > 100) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid team information");
+        }
+
+        /*
+         * Never trust the client to invent a
+         * league/team combination.
+         *
+         * The team must already exist in our
+         * server-controlled teams table.
+         */
+        Team validTeam = teamRepository
+                .findByLeagueAndName(
+                        league,
+                        name)
+                .orElseThrow(
+                        () -> new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Invalid team"));
+
+        boolean alreadyFollowing = followedTeamRepository
+                .existsByAppUserIdAndLeagueAndName(
+                        user.getId(),
+                        validTeam.getLeague(),
+                        validTeam.getName());
+
+        if (alreadyFollowing) {
+
+            return followedTeamRepository
+                    .findByAppUserIdAndLeagueAndName(
+                            user.getId(),
+                            validTeam.getLeague(),
+                            validTeam.getName())
+                    .orElseThrow();
+        }
+
+        /*
+         * Construct the entity ourselves rather
+         * than allowing the request to populate
+         * database-managed fields.
+         */
+        FollowedTeam followedTeam = new FollowedTeam(
+                validTeam.getLeague(),
+                validTeam.getName(),
+                null,
+                "All roster transactions");
+
+        followedTeam.setAppUser(
+                user);
+
+        FollowedTeam savedTeam = followedTeamRepository.save(
+                followedTeam);
 
         /*
          * MLB currently performs its
          * transaction backfill immediately.
          */
-        if (
-            "MLB".equals(
-                savedTeam.getLeague()
-            )
-        ) {
+        if ("MLB".equals(
+                savedTeam.getLeague())) {
+
             backfillMlbTransactions(
-                savedTeam
-            );
+                    savedTeam);
         }
 
         /*
          * NFL initialization runs in the
-         * background so following a team
-         * returns immediately.
-         *
-         * The background service handles:
-         *
-         * - recent transaction backfill
-         * - current injury snapshots
-         * - practice-report history
+         * background.
          */
-        if (
-            "NFL".equals(
-                savedTeam.getLeague()
-            )
-        ) {
+        if ("NFL".equals(
+                savedTeam.getLeague())) {
+
             nflFollowInitializationService
-                .initialize(
-                    savedTeam.getName()
-                );
+                    .initialize(
+                            savedTeam.getName());
         }
 
         return savedTeam;
@@ -177,123 +186,89 @@ public class FollowedTeamController {
     @DeleteMapping("/{id}")
     @Transactional
     public void unfollowTeam(
-        @PathVariable
-        Long id,
+            @PathVariable Long id,
 
-        @RequestHeader(
-            value = "Authorization",
-            required = false
-        )
-        String authorizationHeader
-    ) {
-        AppUser user =
-            appUserService
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        AppUser user = appUserService
                 .requireAuthenticatedUser(
-                    authorizationHeader
-                );
+                        authorizationHeader);
 
-        FollowedTeam followedTeam =
-            followedTeamRepository
+        FollowedTeam followedTeam = followedTeamRepository
                 .findById(
-                    id
-                )
+                        id)
                 .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Followed team not found"
-                        )
-                );
+                        () -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Followed team not found"));
 
-        if (
-            followedTeam.getAppUser()
-                == null ||
-            !followedTeam
-                .getAppUser()
-                .getId()
-                .equals(
-                    user.getId()
-                )
-        ) {
+        if (followedTeam.getAppUser() == null ||
+                !followedTeam
+                        .getAppUser()
+                        .getId()
+                        .equals(
+                                user.getId())) {
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Followed team not found"
-            );
+                    HttpStatus.NOT_FOUND,
+                    "Followed team not found");
         }
 
         alertPreferenceRepository
-            .deleteByFollowedTeamId(
-                id
-            );
+                .deleteByFollowedTeamId(
+                        id);
 
         followedTeamRepository
-            .delete(
-                followedTeam
-            );
+                .delete(
+                        followedTeam);
     }
 
     private void backfillMlbTransactions(
-        FollowedTeam followedTeam
-    ) {
-        Team team =
-            teamRepository
+            FollowedTeam followedTeam) {
+        Team team = teamRepository
                 .findByLeagueAndName(
-                    "MLB",
-                    followedTeam.getName()
-                )
+                        "MLB",
+                        followedTeam.getName())
                 .orElse(null);
 
-        if (
-            team == null ||
-            team.getExternalTeamId() == null
-        ) {
+        if (team == null ||
+                team.getExternalTeamId() == null) {
             System.err.println(
-                "Could not backfill MLB transactions. "
-                    + "No external team ID found for "
-                    + followedTeam.getName()
-            );
+                    "Could not backfill MLB transactions. "
+                            + "No external team ID found for "
+                            + followedTeam.getName());
 
             return;
         }
 
-        LocalDate endDate =
-            LocalDate.now();
+        LocalDate endDate = LocalDate.now();
 
-        LocalDate startDate =
-            endDate.minusDays(7);
+        LocalDate startDate = endDate.minusDays(7);
 
         try {
-            List<MlbTransactionEvent> events =
-                mlbTransactionService
+            List<MlbTransactionEvent> events = mlbTransactionService
                     .getNormalizedTransactions(
-                        team.getExternalTeamId(),
-                        startDate.toString(),
-                        endDate.toString()
-                    );
+                            team.getExternalTeamId(),
+                            startDate.toString(),
+                            endDate.toString());
 
-            List<RosterEvent> savedEvents =
-                rosterEventService
+            List<RosterEvent> savedEvents = rosterEventService
                     .saveMlbEvents(
-                        team.getExternalTeamId(),
-                        events
-                    );
+                            team.getExternalTeamId(),
+                            events);
 
             System.out.println(
-                "MLB backfill complete for "
-                    + followedTeam.getName()
-                    + ". Saved "
-                    + savedEvents.size()
-                    + " recent events."
-            );
+                    "MLB backfill complete for "
+                            + followedTeam.getName()
+                            + ". Saved "
+                            + savedEvents.size()
+                            + " recent events.");
 
         } catch (Exception exception) {
 
             System.err.println(
-                "MLB backfill failed for "
-                    + followedTeam.getName()
-                    + ": "
-                    + exception.getMessage()
-            );
+                    "MLB backfill failed for "
+                            + followedTeam.getName()
+                            + ": "
+                            + exception.getMessage());
         }
     }
 }

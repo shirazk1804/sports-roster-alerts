@@ -239,8 +239,6 @@ export async function followTeam(
       body: JSON.stringify({
         league,
         name,
-        alertType:
-          "All roster transactions",
       }),
     }
   );
