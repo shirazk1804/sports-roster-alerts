@@ -57,27 +57,7 @@ export type AlertPreferences = {
 export type RosterEvent = {
   id: number;
   league: string;
-
-  externalTeamId:
-  number | null;
-
-  externalProviderTeamId:
-  string | null;
-
   teamName: string;
-
-  sourceTransactionId:
-  number | null;
-
-  sourceProviderEventId:
-  string | null;
-
-  playerId:
-  number | null;
-
-  playerProviderId:
-  string | null;
-
   playerName: string;
   eventType: string;
   eventDate: string;

@@ -30,8 +30,14 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# environment / secret files
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
 
 # typescript
 *.tsbuildinfo
@@ -42,4 +48,12 @@ example
 /ios
 /android
 
-.env
+# Java / Maven build output
+backend/target/
+
+# local logs
+*.log
+
+# local secret configuration
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-secrets.properties

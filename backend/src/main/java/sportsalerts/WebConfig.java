@@ -8,14 +8,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    private final ApiAuthenticationInterceptor
-            apiAuthenticationInterceptor;
+    private final ApiAuthenticationInterceptor apiAuthenticationInterceptor;
 
     public WebConfig(
             ApiAuthenticationInterceptor apiAuthenticationInterceptor) {
 
-        this.apiAuthenticationInterceptor =
-                apiAuthenticationInterceptor;
+        this.apiAuthenticationInterceptor = apiAuthenticationInterceptor;
     }
 
     @Override
@@ -39,17 +37,18 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(
                         "http://localhost:8081",
-                        "https://gentle-meerkat-daba19.netlify.app"
-                )
+                        "https://gentle-meerkat-daba19.netlify.app")
                 .allowedMethods(
                         "GET",
                         "POST",
                         "PUT",
-                        "PATCH",
                         "DELETE",
-                        "OPTIONS"
-                )
-                .allowedHeaders("*")
-                .allowCredentials(false);
+                        "OPTIONS")
+                .allowedHeaders(
+                        "Authorization",
+                        "Content-Type",
+                        "Accept")
+                .allowCredentials(false)
+                .maxAge(3600);
     }
 }
