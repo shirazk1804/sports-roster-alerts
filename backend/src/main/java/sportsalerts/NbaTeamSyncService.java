@@ -28,21 +28,16 @@ public class NbaTeamSyncService
     public NbaTeamSyncService(
             TeamRepository teamRepository,
             ObjectMapper objectMapper,
-            @Value("${SPORTRADAR_API_KEY:}")
-            String apiKey) {
+            @Value("${SPORTRADAR_API_KEY:}") String apiKey) {
 
-        this.teamRepository =
-                teamRepository;
+        this.teamRepository = teamRepository;
 
-        this.objectMapper =
-                objectMapper;
+        this.objectMapper = objectMapper;
 
-        this.apiKey =
-                apiKey;
+        this.apiKey = apiKey;
 
-        this.restClient =
-                RestClient.create(
-                        "https://api.sportradar.com");
+        this.restClient = RestClient.create(
+                "https://api.sportradar.com");
     }
 
     @Override
@@ -64,26 +59,21 @@ public class NbaTeamSyncService
             return;
         }
 
-        List<Team> nbaTeams =
-                teamRepository
-                        .findAll()
-                        .stream()
-                        .filter(
-                                team ->
-                                        "NBA".equals(
-                                                team.getLeague()))
-                        .toList();
+        List<Team> nbaTeams = teamRepository
+                .findAll()
+                .stream()
+                .filter(
+                        team -> "NBA".equals(
+                                team.getLeague()))
+                .toList();
 
-        boolean needsSync =
-                nbaTeams
-                        .stream()
-                        .anyMatch(
-                                team ->
-                                        team.getExternalProviderId()
-                                                == null
-                                                ||
-                                        team.getExternalProviderId()
-                                                .isBlank());
+        boolean needsSync = nbaTeams
+                .stream()
+                .anyMatch(
+                        team -> team.getExternalProviderId() == null
+                                ||
+                                team.getExternalProviderId()
+                                        .isBlank());
 
         if (!needsSync) {
 
@@ -95,27 +85,24 @@ public class NbaTeamSyncService
 
         try {
 
-            String response =
-                    restClient
-                            .get()
-                            .uri(
-                                    "/nba/trial/v8/en/league/teams.json")
-                            .header(
-                                    "x-api-key",
-                                    apiKey)
-                            .accept(
-                                    MediaType.APPLICATION_JSON)
-                            .retrieve()
-                            .body(
-                                    String.class);
+            String response = restClient
+                    .get()
+                    .uri(
+                            "/nba/trial/v8/en/league/teams.json")
+                    .header(
+                            "x-api-key",
+                            apiKey)
+                    .accept(
+                            MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(
+                            String.class);
 
-            JsonNode root =
-                    objectMapper.readTree(
-                            response);
+            JsonNode root = objectMapper.readTree(
+                    response);
 
-            JsonNode teams =
-                    root.get(
-                            "teams");
+            JsonNode teams = root.get(
+                    "teams");
 
             if (teams == null ||
                     !teams.isArray()) {
@@ -129,28 +116,22 @@ public class NbaTeamSyncService
 
             int syncedCount = 0;
 
-            for (
-                    JsonNode providerTeam :
-                    teams) {
+            for (JsonNode providerTeam : teams) {
 
-                String providerId =
-                        getText(
-                                providerTeam,
-                                "id");
+                String providerId = getText(
+                        providerTeam,
+                        "id");
 
-                String market =
-                        getText(
-                                providerTeam,
-                                "market");
+                String market = getText(
+                        providerTeam,
+                        "market");
 
-                String name =
-                        getText(
-                                providerTeam,
-                                "name");
+                String name = getText(
+                        providerTeam,
+                        "name");
 
-                String fullName =
-                        (market + " " + name)
-                                .trim();
+                String fullName = (market + " " + name)
+                        .trim();
 
                 if (providerId.isBlank() ||
                         fullName.isBlank()) {
@@ -158,19 +139,13 @@ public class NbaTeamSyncService
                     continue;
                 }
 
-                Team team =
-                        teamRepository
-                                .findByLeagueAndName(
-                                        "NBA",
-                                        fullName)
-                                .orElse(null);
+                Team team = teamRepository
+                        .findByLeagueAndName(
+                                "NBA",
+                                fullName)
+                        .orElse(null);
 
                 if (team == null) {
-
-                    System.err.println(
-                            "Could not match Sportradar NBA team: "
-                                    + fullName);
-
                     continue;
                 }
 
@@ -200,9 +175,8 @@ public class NbaTeamSyncService
             JsonNode node,
             String fieldName) {
 
-        JsonNode value =
-                node.get(
-                        fieldName);
+        JsonNode value = node.get(
+                fieldName);
 
         if (value == null ||
                 value.isNull()) {

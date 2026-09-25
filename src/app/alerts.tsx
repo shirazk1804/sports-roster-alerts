@@ -164,6 +164,18 @@ const eventLabels:
 
   INJURY_STATUS_CHANGE:
     "Injury Status Update",
+
+  WAIVED:
+    "Waived",
+
+  G_LEAGUE_ASSIGNMENT:
+    "Assigned to G League",
+
+  G_LEAGUE_RECALL:
+    "Recalled from G League",
+
+  INACTIVE:
+    "Inactive",
 };
 
 export default function AlertsScreen() {

@@ -198,6 +198,52 @@ public class RosterEventService {
         return savedEvents;
     }
 
+    @Transactional
+    public List<RosterEvent> saveNbaEvents(
+            String externalProviderTeamId,
+            List<NbaTransactionEvent> events) {
+
+        List<RosterEvent> savedEvents = new ArrayList<>();
+
+        for (NbaTransactionEvent event : events) {
+
+            String dedupeKey = createNbaDedupeKey(
+                    externalProviderTeamId,
+                    event);
+
+            boolean alreadyExists = rosterEventRepository
+                    .existsByDedupeKey(
+                            dedupeKey);
+
+            if (alreadyExists) {
+                continue;
+            }
+
+            LocalDate eventDate = parseProviderDate(
+                    event.effectiveDate());
+
+            RosterEvent rosterEvent = new RosterEvent(
+                    "NBA",
+                    externalProviderTeamId,
+                    event.teamName(),
+                    event.sourceProviderEventId(),
+                    event.playerProviderId(),
+                    event.playerName(),
+                    event.eventType(),
+                    eventDate,
+                    event.description(),
+                    dedupeKey);
+
+            RosterEvent saved = rosterEventRepository.save(
+                    rosterEvent);
+
+            savedEvents.add(
+                    saved);
+        }
+
+        return savedEvents;
+    }
+
     // =========================
     // USER VISIBLE EVENTS
     // =========================
@@ -426,6 +472,10 @@ public class RosterEventService {
                 case "G_LEAGUE_RECALL" ->
                     "G League recalls";
 
+                case "INACTIVE",
+                        "ACTIVATED" ->
+                    "Inactive / Out";
+
                 case "SUSPENDED",
                         "SUSPENSION_REINSTATED" ->
                     "Suspensions";
@@ -463,6 +513,28 @@ public class RosterEventService {
             String externalProviderTeamId,
             NflTransactionEvent event) {
         String rawKey = "NFL"
+                + "|"
+                + externalProviderTeamId
+                + "|"
+                + event.sourceProviderEventId()
+                + "|"
+                + event.playerProviderId()
+                + "|"
+                + event.eventType()
+                + "|"
+                + event.effectiveDate()
+                + "|"
+                + event.description();
+
+        return sha256(
+                rawKey);
+    }
+
+    private String createNbaDedupeKey(
+            String externalProviderTeamId,
+            NbaTransactionEvent event) {
+
+        String rawKey = "NBA"
                 + "|"
                 + externalProviderTeamId
                 + "|"
