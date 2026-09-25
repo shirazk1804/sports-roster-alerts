@@ -24,6 +24,7 @@ import {
 import {
     CurrentInjury,
     getCurrentInjuries,
+    getNbaCurrentInjuries,
 } from "../api";
 
 import TeamLogo from "../components/TeamLogo";
@@ -100,6 +101,7 @@ export default function TeamInjuriesScreen() {
     const params = useLocalSearchParams<{
         id: string;
         name: string;
+        league?: string;
     }>();
 
     const teamId =
@@ -107,6 +109,10 @@ export default function TeamInjuriesScreen() {
 
     const teamName =
         params.name || "";
+
+    const league =
+        (params.league || "NFL")
+            .toUpperCase();
 
     const [injuries, setInjuries] =
         useState<CurrentInjury[]>([]);
@@ -129,14 +135,80 @@ export default function TeamInjuriesScreen() {
                 setLoading(true);
             }
 
-            const currentInjuries =
-                await getCurrentInjuries(
-                    teamId
+            if (league === "NBA") {
+
+                const nbaInjuries =
+                    await getNbaCurrentInjuries(
+                        teamId
+                    );
+
+                /*
+                 * Normalize NBA injuries into the
+                 * same shape the existing injury
+                 * screen already understands.
+                 */
+                const normalizedInjuries:
+                    CurrentInjury[] =
+                    nbaInjuries.map(
+                        injury => ({
+                            playerName:
+                                injury.playerName,
+
+                            playerProviderId:
+                                injury.playerProviderId,
+
+                            headshotUrl: null,
+
+                            fallbackHeadshotUrl: null,
+
+                            position:
+                                injury.position,
+
+                            seasonYear: null,
+
+                            seasonType: null,
+
+                            weekNumber: null,
+
+                            injury:
+                                injury.injury,
+
+                            secondaryInjury: null,
+
+                            gameStatus:
+                                injury.status,
+
+                            statusDate:
+                                injury.updateDate ??
+                                injury.startDate,
+
+                            estimatedReturnDate: null,
+
+                            practiceReports: [],
+
+                            comment:
+                                injury.comment,
+
+                            updatedAt:
+                                injury.updatedAt,
+                        })
+                    );
+
+                setInjuries(
+                    normalizedInjuries
                 );
 
-            setInjuries(
-                currentInjuries
-            );
+            } else {
+
+                const currentInjuries =
+                    await getCurrentInjuries(
+                        teamId
+                    );
+
+                setInjuries(
+                    currentInjuries
+                );
+            }
         } catch (error) {
             const message =
                 error instanceof Error
@@ -480,7 +552,7 @@ export default function TeamInjuriesScreen() {
                 <View style={styles.teamHeader}>
                     <View style={styles.logoWrapper}>
                         <TeamLogo
-                            league="NFL"
+                            league={league}
                             teamName={teamName}
                             size={62}
                         />
@@ -488,7 +560,7 @@ export default function TeamInjuriesScreen() {
 
                     <View style={styles.teamHeaderText}>
                         <Text style={styles.league}>
-                            NFL
+                            {league}
                         </Text>
 
                         <Text style={styles.teamName}>
@@ -518,26 +590,28 @@ export default function TeamInjuriesScreen() {
                                 styles.description
                             }
                         >
-                            Practice participation
-                            and game availability.
+                            {league === "NBA"
+                                ? "Current player injury status and details."
+                                : "Practice participation and game availability."}
                         </Text>
                     </View>
 
-                    {weekNumber && (
-                        <View
-                            style={
-                                styles.weekBadge
-                            }
-                        >
-                            <Text
+                    {league === "NFL" &&
+                        Boolean(weekNumber) && (
+                            <View
                                 style={
-                                    styles.weekBadgeText
+                                    styles.weekBadge
                                 }
                             >
-                                WEEK {weekNumber}
-                            </Text>
-                        </View>
-                    )}
+                                <Text
+                                    style={
+                                        styles.weekBadgeText
+                                    }
+                                >
+                                    WEEK {weekNumber}
+                                </Text>
+                            </View>
+                        )}
                 </View>
 
                 {Boolean(latestChecked) && (
@@ -551,25 +625,26 @@ export default function TeamInjuriesScreen() {
                     </Text>
                 )}
 
-                {practiceDates.length > 0 && (
-                    <View
-                        style={
-                            styles.legend
-                        }
-                    >
-                        <Text
+                {league === "NFL" &&
+                    practiceDates.length > 0 && (
+                        <View
                             style={
-                                styles.legendText
+                                styles.legend
                             }
                         >
-                            DNP = Did Not Participate
-                            {"  "}•{"  "}
-                            LP = Limited
-                            {"  "}•{"  "}
-                            FP = Full
-                        </Text>
-                    </View>
-                )}
+                            <Text
+                                style={
+                                    styles.legendText
+                                }
+                            >
+                                DNP = Did Not Participate
+                                {"  "}•{"  "}
+                                LP = Limited
+                                {"  "}•{"  "}
+                                FP = Full
+                            </Text>
+                        </View>
+                    )}
 
                 {loading ? (
                     <View
@@ -608,9 +683,9 @@ export default function TeamInjuriesScreen() {
                                 styles.emptyText
                             }
                         >
-                            The current week's
-                            injury report has not
-                            been published yet.
+                            {league === "NBA"
+                                ? "No current injuries are available for this team."
+                                : "The current week's injury report has not been published yet."}
                         </Text>
                     </View>
                 ) : (
@@ -671,110 +746,172 @@ export default function TeamInjuriesScreen() {
                                     }
                                 />
 
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={
-                                        false
-                                    }
-                                    contentContainerStyle={
-                                        styles.statusRow
-                                    }
-                                >
-                                    {practiceDates.map(
-                                        reportDate => (
-                                            <View
-                                                key={
-                                                    reportDate
-                                                }
-                                                style={
-                                                    styles.statusColumn
-                                                }
-                                            >
-                                                <Text
-                                                    style={
-                                                        styles.statusLabel
-                                                    }
-                                                >
-                                                    {
-                                                        formatDay(
-                                                            reportDate
-                                                        )
-                                                    }
-                                                </Text>
-
-                                                <Text
-                                                    style={
-                                                        styles.statusDate
-                                                    }
-                                                >
-                                                    {
-                                                        formatShortDate(
-                                                            reportDate
-                                                        )
-                                                    }
-                                                </Text>
-
-                                                <View
-                                                    style={
-                                                        styles.statusValueBox
-                                                    }
-                                                >
-                                                    <Text
-                                                        style={
-                                                            styles.statusValue
-                                                        }
-                                                    >
-                                                        {
-                                                            getPracticeStatus(
-                                                                injury,
-                                                                reportDate
-                                                            )
-                                                        }
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        )
-                                    )}
+                                {league === "NBA" ? (
 
                                     <View
                                         style={
-                                            styles.gameColumn
+                                            styles.nbaStatusSection
                                         }
                                     >
-                                        <Text
-                                            style={
-                                                styles.statusLabel
-                                            }
-                                        >
-                                            GAME
-                                        </Text>
-
-                                        <Text
-                                            style={
-                                                styles.statusDate
-                                            }
-                                        >
-                                            STATUS
-                                        </Text>
-
                                         <View
                                             style={
-                                                styles.gameStatusBox
+                                                styles.nbaStatusRow
                                             }
                                         >
                                             <Text
                                                 style={
-                                                    styles.gameStatusText
+                                                    styles.statusLabel
                                                 }
                                             >
-                                                {
-                                                    injury.gameStatus ||
-                                                    "—"
-                                                }
+                                                STATUS
                                             </Text>
+
+                                            <View
+                                                style={
+                                                    styles.gameStatusBox
+                                                }
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.gameStatusText
+                                                    }
+                                                >
+                                                    {injury.gameStatus ||
+                                                        "—"}
+                                                </Text>
+                                            </View>
                                         </View>
+
+                                        {Boolean(injury.comment) && (
+                                            <Text
+                                                style={
+                                                    styles.nbaComment
+                                                }
+                                            >
+                                                {injury.comment}
+                                            </Text>
+                                        )}
+
+                                        {Boolean(injury.statusDate) && (
+                                            <Text
+                                                style={
+                                                    styles.returnText
+                                                }
+                                            >
+                                                Updated:{" "}
+                                                {injury.statusDate}
+                                            </Text>
+                                        )}
                                     </View>
-                                </ScrollView>
+
+                                ) : (
+
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={
+                                            false
+                                        }
+                                        contentContainerStyle={
+                                            styles.statusRow
+                                        }
+                                    >
+                                        {practiceDates.map(
+                                            reportDate => (
+                                                <View
+                                                    key={
+                                                        reportDate
+                                                    }
+                                                    style={
+                                                        styles.statusColumn
+                                                    }
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.statusLabel
+                                                        }
+                                                    >
+                                                        {
+                                                            formatDay(
+                                                                reportDate
+                                                            )
+                                                        }
+                                                    </Text>
+
+                                                    <Text
+                                                        style={
+                                                            styles.statusDate
+                                                        }
+                                                    >
+                                                        {
+                                                            formatShortDate(
+                                                                reportDate
+                                                            )
+                                                        }
+                                                    </Text>
+
+                                                    <View
+                                                        style={
+                                                            styles.statusValueBox
+                                                        }
+                                                    >
+                                                        <Text
+                                                            style={
+                                                                styles.statusValue
+                                                            }
+                                                        >
+                                                            {
+                                                                getPracticeStatus(
+                                                                    injury,
+                                                                    reportDate
+                                                                )
+                                                            }
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            )
+                                        )}
+
+                                        <View
+                                            style={
+                                                styles.gameColumn
+                                            }
+                                        >
+                                            <Text
+                                                style={
+                                                    styles.statusLabel
+                                                }
+                                            >
+                                                GAME
+                                            </Text>
+
+                                            <Text
+                                                style={
+                                                    styles.statusDate
+                                                }
+                                            >
+                                                STATUS
+                                            </Text>
+
+                                            <View
+                                                style={
+                                                    styles.gameStatusBox
+                                                }
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.gameStatusText
+                                                    }
+                                                >
+                                                    {
+                                                        injury.gameStatus ||
+                                                        "—"
+                                                    }
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </ScrollView>
+
+                                )}
 
                                 {Boolean(injury.estimatedReturnDate) && (
                                     <Text
@@ -1098,5 +1235,22 @@ const styles =
             marginTop: 12,
             fontSize: 12,
             color: "#64748B",
+        },
+
+        nbaStatusSection: {
+            marginTop: 2,
+        },
+
+        nbaStatusRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+        },
+
+        nbaComment: {
+            marginTop: 12,
+            fontSize: 13,
+            lineHeight: 19,
+            color: "#475569",
         },
     });

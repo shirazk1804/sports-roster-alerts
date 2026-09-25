@@ -347,7 +347,7 @@ public class RosterEventService {
         if ("MLB".equals(league)) {
 
             return switch (eventType) {
-                
+
                 case "STARTING_LINEUP_POSTED" ->
                     "Starting lineup posted";
 
@@ -399,6 +399,36 @@ public class RosterEventService {
                         "WAIVERS",
                         "RETIRED" ->
                     "Signings and releases";
+
+                default ->
+                    null;
+            };
+        }
+
+        if ("NBA".equals(league)) {
+
+            return switch (eventType) {
+
+                case "INJURY_STATUS_CHANGE" ->
+                    "Injury status changes";
+
+                case "TRADE" ->
+                    "Trades";
+
+                case "SIGNED",
+                        "RELEASED",
+                        "WAIVED" ->
+                    "Signings and waives";
+
+                case "G_LEAGUE_ASSIGNMENT" ->
+                    "G League assignments";
+
+                case "G_LEAGUE_RECALL" ->
+                    "G League recalls";
+
+                case "SUSPENDED",
+                        "SUSPENSION_REINSTATED" ->
+                    "Suspensions";
 
                 default ->
                     null;

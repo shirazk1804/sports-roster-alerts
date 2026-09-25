@@ -153,6 +153,7 @@ export default function TeamSettingsScreen() {
       params: {
         id: String(teamId),
         name: teamName,
+        league: league,
       },
     });
   }
@@ -283,46 +284,48 @@ export default function TeamSettingsScreen() {
           </View>
         </View>
 
-        {league === "NFL" && (
-          <Pressable
-            onPress={
-              openCurrentInjuries
-            }
-            style={({ pressed }) => [
-              styles.injuriesButton,
-
-              pressed &&
-              styles.injuriesButtonPressed,
-            ]}
-          >
-            <View>
-              <Text
-                style={
-                  styles.injuriesButtonTitle
-                }
-              >
-                Current Injuries
-              </Text>
-
-              <Text
-                style={
-                  styles.injuriesButtonSubtitle
-                }
-              >
-                View player injury and
-                availability information
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.injuriesChevron
+        {(league === "NFL" ||
+          league === "NBA") && (
+            <Pressable
+              onPress={
+                openCurrentInjuries
               }
+              style={({ pressed }) => [
+                styles.injuriesButton,
+
+                pressed &&
+                styles.injuriesButtonPressed,
+              ]}
             >
-              ›
-            </Text>
-          </Pressable>
-        )}
+              <View>
+                <Text
+                  style={
+                    styles.injuriesButtonTitle
+                  }
+                >
+                  Current Injuries
+                </Text>
+
+                <Text
+                  style={
+                    styles.injuriesButtonSubtitle
+                  }
+                >
+                  {league === "NBA"
+                    ? "View current player injuries and status"
+                    : "View player injury and availability information"}
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.injuriesChevron
+                }
+              >
+                ›
+              </Text>
+            </Pressable>
+          )}
 
         {league === "MLB" && (
           <Pressable

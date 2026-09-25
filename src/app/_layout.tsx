@@ -8,10 +8,6 @@ import {
 } from "../api";
 
 import {
-  getExpoPushToken,
-} from "../notifications";
-
-import {
   getAuthToken,
   getInstallationId,
   saveAuthToken,
@@ -63,6 +59,13 @@ export default function RootLayout() {
         }
 
         if (Platform.OS !== "web") {
+
+          const {
+            getExpoPushToken,
+          } = await import(
+            "../notifications"
+          );
+
           const pushToken =
             await getExpoPushToken();
 
@@ -74,10 +77,6 @@ export default function RootLayout() {
             "Push token registered with backend."
           );
         }
-
-        console.log(
-          "Push token registered with backend."
-        );
 
       } catch (error) {
 

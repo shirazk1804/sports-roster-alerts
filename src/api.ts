@@ -65,12 +65,47 @@ export type RosterEvent = {
   createdAt: string;
 };
 
+export type NbaCurrentInjury = {
+  playerName: string;
+  playerProviderId: string;
+  position: string | null;
+  injury: string | null;
+  status: string | null;
+  comment: string | null;
+  startDate: string | null;
+  updateDate: string | null;
+  updatedAt: string;
+};
+
+export async function getNbaCurrentInjuries(
+  teamId: number
+): Promise<NbaCurrentInjury[]> {
+
+  const response = await fetch(
+    `${API_URL}/api/followed-teams/${teamId}/nba-injuries`,
+    {
+      headers:
+        await getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not load NBA injuries (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
 export type InjuryPracticeReport = {
   reportDate: string;
   practiceStatus: string | null;
 };
 
 export type CurrentInjury = {
+  comment?: string | null;
+
   playerName: string;
 
   playerProviderId: string;
