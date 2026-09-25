@@ -27,6 +27,9 @@ public class AppUser {
     @Column(name = "auth_token_hash", unique = true, length = 64)
     private String authTokenHash;
 
+    @Column(name = "auth_token_expires_at")
+    private LocalDateTime authTokenExpiresAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -55,6 +58,16 @@ public class AppUser {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public LocalDateTime getAuthTokenExpiresAt() {
+        return authTokenExpiresAt;
+    }
+
+    public void setAuthTokenExpiresAt(
+            LocalDateTime authTokenExpiresAt) {
+
+        this.authTokenExpiresAt = authTokenExpiresAt;
     }
 
     String getAuthTokenHash() {
