@@ -3,10 +3,12 @@ package sportsalerts;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -44,12 +46,46 @@ public class AppUserController {
                         getClientIp(
                                 request));
 
-        String installationId = body.get("installationId");
+        String installationId = body == null
+                ? null
+                : body.get(
+                        "installationId");
 
         if (installationId == null ||
                 installationId.isBlank()) {
-            throw new IllegalArgumentException(
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "installationId is required");
+        }
+
+        installationId = installationId.trim();
+
+        /*
+         * The database column allows a maximum
+         * of 100 characters.
+         */
+        if (installationId.length() < 10 ||
+                installationId.length() > 100) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid installationId");
+        }
+
+        /*
+         * Our app generates installation IDs
+         * using letters, numbers and hyphens.
+         *
+         * Reject unusual input before it reaches
+         * the database.
+         */
+        if (!installationId.matches(
+                "[A-Za-z0-9-]+")) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid installationId");
         }
 
         AppUserService.RegistrationResult result = appUserService.registerInstallation(
