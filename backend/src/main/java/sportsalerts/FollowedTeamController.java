@@ -33,6 +33,8 @@ public class FollowedTeamController {
 
     private final NflFollowInitializationService nflFollowInitializationService;
 
+    private final ApiRateLimitService apiRateLimitService;
+
     public FollowedTeamController(
             FollowedTeamRepository followedTeamRepository,
             AlertPreferenceRepository alertPreferenceRepository,
@@ -40,7 +42,8 @@ public class FollowedTeamController {
             MlbTransactionService mlbTransactionService,
             RosterEventService rosterEventService,
             AppUserService appUserService,
-            NflFollowInitializationService nflFollowInitializationService) {
+            NflFollowInitializationService nflFollowInitializationService,
+            ApiRateLimitService apiRateLimitService) {
         this.followedTeamRepository = followedTeamRepository;
 
         this.alertPreferenceRepository = alertPreferenceRepository;
@@ -54,6 +57,8 @@ public class FollowedTeamController {
         this.appUserService = appUserService;
 
         this.nflFollowInitializationService = nflFollowInitializationService;
+
+        this.apiRateLimitService = apiRateLimitService;
     }
 
     @GetMapping
@@ -77,6 +82,10 @@ public class FollowedTeamController {
         AppUser user = appUserService
                 .requireAuthenticatedUser(
                         authorizationHeader);
+
+        apiRateLimitService
+                .checkTeamMutation(
+                        user.getId());
 
         if (request == null ||
                 request.league() == null ||
@@ -192,6 +201,10 @@ public class FollowedTeamController {
         AppUser user = appUserService
                 .requireAuthenticatedUser(
                         authorizationHeader);
+
+        apiRateLimitService
+                .checkTeamMutation(
+                        user.getId());
 
         FollowedTeam followedTeam = followedTeamRepository
                 .findById(

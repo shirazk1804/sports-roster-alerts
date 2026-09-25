@@ -8,57 +8,74 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/users")
 public class AppUserController {
 
     public record RegistrationResponse(
-        Long id,
-        String installationId,
-        LocalDateTime createdAt,
-        String authToken
-    ) {
+            Long id,
+            String installationId,
+            LocalDateTime createdAt,
+            String authToken) {
     }
 
-    private final AppUserService
-        appUserService;
+    private final AppUserService appUserService;
+
+    private final ApiRateLimitService apiRateLimitService;
 
     public AppUserController(
-        AppUserService appUserService
-    ) {
-        this.appUserService =
-            appUserService;
+            AppUserService appUserService,
+            ApiRateLimitService apiRateLimitService) {
+
+        this.appUserService = appUserService;
+
+        this.apiRateLimitService = apiRateLimitService;
     }
 
     @PostMapping("/register")
     public RegistrationResponse registerUser(
-        @RequestBody Map<String, String> body
-    ) {
-        String installationId =
-            body.get("installationId");
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
 
-        if (
-            installationId == null ||
-            installationId.isBlank()
-        ) {
+        apiRateLimitService
+                .checkRegistration(
+                        getClientIp(
+                                request));
+
+        String installationId = body.get("installationId");
+
+        if (installationId == null ||
+                installationId.isBlank()) {
             throw new IllegalArgumentException(
-                "installationId is required"
-            );
+                    "installationId is required");
         }
 
-        AppUserService.RegistrationResult result =
-            appUserService.registerInstallation(
-                installationId
-            );
+        AppUserService.RegistrationResult result = appUserService.registerInstallation(
+                installationId);
 
-        AppUser user =
-            result.user();
+        AppUser user = result.user();
 
         return new RegistrationResponse(
-            user.getId(),
-            user.getInstallationId(),
-            user.getCreatedAt(),
-            result.authToken()
-        );
+                user.getId(),
+                user.getInstallationId(),
+                user.getCreatedAt(),
+                result.authToken());
+    }
+
+    private String getClientIp(
+            HttpServletRequest request) {
+
+        String realIp = request.getHeader(
+                "X-Real-IP");
+
+        if (realIp != null &&
+                !realIp.isBlank()) {
+
+            return realIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 }
