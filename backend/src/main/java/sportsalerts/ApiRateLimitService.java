@@ -39,7 +39,7 @@ public class ApiRateLimitService {
     ) {
         check(
             "register:" + clientIp,
-            10,
+            100,
             Duration.ofHours(1)
         );
     }
