@@ -185,7 +185,7 @@ public class NbaTeamSyncService
         }
 
         return value
-                .asText()
+                .asString()
                 .trim();
     }
 }

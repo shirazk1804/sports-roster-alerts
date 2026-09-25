@@ -62,10 +62,6 @@ public class NflInjuryScheduler {
                                                                 followedTeam.getAppUser() != null)
                                 .toList();
 
-                if (followedNflTeams.isEmpty()) {
-                        return;
-                }
-
                 Map<String, List<FollowedTeam>> followersByTeam = followedNflTeams
                                 .stream()
                                 .collect(
@@ -184,8 +180,58 @@ public class NflInjuryScheduler {
                         return;
                 }
 
-                int totalInjuriesSeen = 0;
+                /*
+                 * Preserve practice-report history for
+                 * every NFL team, even if nobody is
+                 * currently following that team.
+                 *
+                 * The Sportradar weekly injury endpoint
+                 * is league-wide, so this does NOT make
+                 * additional provider requests.
+                 */
                 int totalPracticeReportsCaptured = 0;
+
+                List<Team> allNflTeams = teamRepository
+                                .findAll()
+                                .stream()
+                                .filter(
+                                                team -> "NFL".equals(
+                                                                team.getLeague())
+                                                                &&
+                                                                team.getExternalProviderId() != null
+                                                                &&
+                                                                !team.getExternalProviderId()
+                                                                                .isBlank())
+                                .toList();
+
+                for (Team team : allNflTeams) {
+
+                        try {
+
+                                String providerTeamId = team.getExternalProviderId();
+
+                                List<NflInjuryEvent> injuries = nflInjuryService
+                                                .getNormalizedInjuriesForTeam(
+                                                                rawInjuries,
+                                                                providerTeamId);
+
+                                totalPracticeReportsCaptured += nflInjuryPracticeReportService
+                                                .captureReports(
+                                                                providerTeamId,
+                                                                currentWeek,
+                                                                injuries);
+
+                        } catch (Exception exception) {
+
+                                System.err.println(
+                                                "NFL practice report capture failed for "
+                                                                + team.getName()
+                                                                + ": "
+                                                                + exception.getMessage());
+                        }
+                }
+
+                int totalInjuriesSeen = 0;
                 int totalNewEvents = 0;
                 int totalNotifications = 0;
 
@@ -201,21 +247,6 @@ public class NflInjuryScheduler {
                                 continue;
                         }
 
-                        if ("Denver Broncos".equals(teamName) ||
-                                        "Philadelphia Eagles".equals(teamName)) {
-
-                                System.out.println(
-                                                "RAW NFL INJURY DATA FOR "
-                                                                + teamName
-                                                                + ":");
-
-                                System.out.println(
-                                                nflInjuryService
-                                                                .getRawTeamInjuryBlock(
-                                                                                rawInjuries,
-                                                                                providerTeamId));
-                        }
-
                         try {
                                 List<NflInjuryEvent> injuries = nflInjuryService
                                                 .getNormalizedInjuriesForTeam(
@@ -223,14 +254,6 @@ public class NflInjuryScheduler {
                                                                 providerTeamId);
 
                                 totalInjuriesSeen += injuries.size();
-
-                                int reportsCaptured = nflInjuryPracticeReportService
-                                                .captureReports(
-                                                                providerTeamId,
-                                                                currentWeek,
-                                                                injuries);
-
-                                totalPracticeReportsCaptured += reportsCaptured;
 
                                 /*
                                  * First observations for the

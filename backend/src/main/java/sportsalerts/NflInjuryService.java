@@ -414,44 +414,6 @@ public class NflInjuryService {
                 }
         }
 
-        public String getRawTeamInjuryBlock(
-                        String rawJson,
-                        String externalProviderTeamId) {
-
-                try {
-                        JsonNode root = objectMapper.readTree(
-                                        rawJson);
-
-                        JsonNode teams = root.get("teams");
-
-                        if (teams == null ||
-                                        !teams.isArray()) {
-                                return "No teams array";
-                        }
-
-                        for (JsonNode team : teams) {
-
-                                String teamId = getText(
-                                                team,
-                                                "id");
-
-                                if (externalProviderTeamId
-                                                .equals(teamId)) {
-
-                                        return team
-                                                        .toPrettyString();
-                                }
-                        }
-
-                        return "Team not found in injury response";
-
-                } catch (Exception exception) {
-
-                        return "Could not inspect team injury JSON: "
-                                        + exception.getMessage();
-                }
-        }
-
         private String buildDescription(
                         String playerName,
                         String primary,
