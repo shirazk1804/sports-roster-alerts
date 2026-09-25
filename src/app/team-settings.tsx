@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -17,14 +18,17 @@ import {
 } from "react-native";
 
 import {
+  useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
 
 import {
   AlertPreferences,
+  CurrentInjury,
   deleteFollowedTeam,
   getAlertPreferences,
+  getCurrentInjuries,
   saveAlertPreferences,
 } from "../api";
 
@@ -91,9 +95,28 @@ export default function TeamSettingsScreen() {
   const [saving, setSaving] =
     useState(false);
 
+  const [gameStatuses, setGameStatuses] =
+    useState<CurrentInjury[]>([]);
+
+  const [gameStatusLoading, setGameStatusLoading] =
+    useState(false);
+
+  const [gameStatusError, setGameStatusError] =
+    useState("");
+
   useEffect(() => {
     loadSettings();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (league !== "NFL") {
+        return;
+      }
+
+      void loadGameStatuses();
+    }, [league, teamId])
+  );
 
   async function loadSettings() {
     try {
@@ -132,6 +155,110 @@ export default function TeamSettingsScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadGameStatuses() {
+    try {
+      setGameStatusLoading(true);
+      setGameStatusError("");
+
+      const currentInjuries =
+        await getCurrentInjuries(
+          teamId
+        );
+
+      const statusPriority:
+        Record<string, number> = {
+        out: 0,
+        doubtful: 1,
+        questionable: 2,
+      };
+
+      const playersWithStatus =
+        currentInjuries
+          .filter(
+            injury =>
+              injury.gameStatus != null &&
+              injury.gameStatus.trim() !== ""
+          )
+          .sort((a, b) => {
+            const aStatus =
+              (
+                a.gameStatus ?? ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const bStatus =
+              (
+                b.gameStatus ?? ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const aPriority =
+              statusPriority[aStatus] ?? 99;
+
+            const bPriority =
+              statusPriority[bStatus] ?? 99;
+
+            if (
+              aPriority !== bPriority
+            ) {
+              return (
+                aPriority -
+                bPriority
+              );
+            }
+
+            return a.playerName
+              .localeCompare(
+                b.playerName
+              );
+          });
+
+      setGameStatuses(
+        playersWithStatus
+      );
+
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not load game statuses.";
+
+      setGameStatusError(
+        message
+      );
+
+    } finally {
+      setGameStatusLoading(
+        false
+      );
+    }
+  }
+
+  function getGameStatusInjury(
+    injury: CurrentInjury
+  ) {
+    const injuries = [
+      injury.injury,
+      injury.secondaryInjury,
+    ].filter(
+      value =>
+        value != null &&
+        value.trim() !== ""
+    );
+
+    if (
+      injuries.length === 0
+    ) {
+      return "Injury not specified";
+    }
+
+    return injuries.join(
+      " / "
+    );
   }
 
   function toggleSetting(
@@ -283,6 +410,149 @@ export default function TeamSettingsScreen() {
             </Text>
           </View>
         </View>
+
+        {league === "NFL" && (
+          <View
+            style={
+              styles.gameStatusSection
+            }
+          >
+            <Text
+              style={
+                styles.gameStatusTitle
+              }
+            >
+              Game Status
+            </Text>
+
+            <Text
+              style={
+                styles.gameStatusSubtitle
+              }
+            >
+              Current player designations
+              for the upcoming game.
+            </Text>
+
+            {gameStatusLoading ? (
+              <View
+                style={
+                  styles.gameStatusLoading
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                />
+
+                <Text
+                  style={
+                    styles.gameStatusMessage
+                  }
+                >
+                  Loading game status...
+                </Text>
+              </View>
+            ) : gameStatusError !== "" ? (
+              <Text
+                style={
+                  styles.gameStatusError
+                }
+              >
+                Unable to load game
+                status.
+              </Text>
+            ) : gameStatuses.length ===
+              0 ? (
+              <View
+                style={
+                  styles.gameStatusEmpty
+                }
+              >
+                <Text
+                  style={
+                    styles.gameStatusMessage
+                  }
+                >
+                  No game designations
+                  yet.
+                </Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={
+                  openCurrentInjuries
+                }
+                style={({ pressed }) => [
+                  styles.gameStatusCard,
+
+                  pressed &&
+                  styles.gameStatusCardPressed,
+                ]}
+              >
+                {gameStatuses.map(
+                  (injury, index) => (
+                    <View
+                      key={
+                        `${injury.playerName}-${index}`
+                      }
+                      style={[
+                        styles.gameStatusRow,
+
+                        index !==
+                        gameStatuses.length -
+                        1 &&
+                        styles.gameStatusRowBorder,
+                      ]}
+                    >
+                      <View
+                        style={
+                          styles.gameStatusPlayer
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.gameStatusPlayerName
+                          }
+                        >
+                          {
+                            injury.playerName
+                          }
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.gameStatusInjury
+                          }
+                        >
+                          {getGameStatusInjury(
+                            injury
+                          )}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={
+                          styles.gameStatusBadge
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.gameStatusBadgeText
+                          }
+                        >
+                          {(
+                            injury.gameStatus ??
+                            ""
+                          ).toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                )}
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {(league === "NFL" ||
           league === "NBA") && (
@@ -525,6 +795,112 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "800",
     color: "#0F172A",
+  },
+
+  gameStatusSection: {
+    marginBottom: 16,
+  },
+
+  gameStatusTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  gameStatusSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748B",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+
+  gameStatusCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 17,
+  },
+
+  gameStatusCardPressed: {
+    opacity: 0.7,
+  },
+
+  gameStatusRow: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent:
+      "space-between",
+    paddingVertical: 11,
+  },
+
+  gameStatusRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor:
+      "#E2E8F0",
+  },
+
+  gameStatusPlayer: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  gameStatusPlayerName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+
+  gameStatusInjury: {
+    fontSize: 13,
+    color: "#64748B",
+    marginTop: 3,
+  },
+
+  gameStatusBadge: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+
+  gameStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#334155",
+  },
+
+  gameStatusLoading: {
+    minHeight: 70,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  gameStatusEmpty: {
+    minHeight: 64,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    justifyContent: "center",
+    paddingHorizontal: 17,
+  },
+
+  gameStatusMessage: {
+    fontSize: 13,
+    color: "#64748B",
+    marginTop: 5,
+  },
+
+  gameStatusError: {
+    fontSize: 13,
+    color: "#DC2626",
   },
 
   injuriesButton: {

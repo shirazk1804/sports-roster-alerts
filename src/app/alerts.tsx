@@ -66,6 +66,30 @@ function formatEventDate(
   );
 }
 
+function formatEventDescription(
+  event: RosterEvent
+): string {
+  if (
+    event.eventType ===
+    "INJURY_STATUS_CHANGE"
+  ) {
+    const prefix =
+      `${event.playerName}: `;
+
+    if (
+      event.description.startsWith(
+        prefix
+      )
+    ) {
+      return event.description.substring(
+        prefix.length
+      );
+    }
+  }
+
+  return event.description;
+}
+
 const eventLabels:
   Record<string, string> = {
 
@@ -209,9 +233,7 @@ export default function AlertsScreen() {
         savedEvents.filter(
           event =>
             event.eventType !==
-            "STARTING_LINEUP_POSTED" &&
-            event.eventType !==
-            "INJURY_STATUS_CHANGE"
+            "STARTING_LINEUP_POSTED"
         );
 
       setEvents(
@@ -394,7 +416,9 @@ export default function AlertsScreen() {
                   styles.description
                 }
               >
-                {event.description}
+                {formatEventDescription(
+                  event
+                )}
               </Text>
             </View>
           )
