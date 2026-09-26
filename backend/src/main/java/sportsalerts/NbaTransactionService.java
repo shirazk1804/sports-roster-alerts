@@ -121,18 +121,6 @@ public class NbaTransactionService {
 
                 for (JsonNode transfer : transfers) {
 
-                    if (playerName
-                            .toLowerCase()
-                            .contains("kawhi")) {
-
-                        System.out.println(
-                                "RAW KAWHI NBA TRANSFER"
-                                        + " | player="
-                                        + playerName
-                                        + " | transfer="
-                                        + transfer.toString());
-                    }
-
                     if (!belongsToTeam(
                             transfer,
                             externalProviderTeamId)) {

@@ -49,7 +49,6 @@ public class NbaTransactionScheduler {
     }
 
     @Scheduled(initialDelay = 45000, fixedDelay = 3600000)
-    @Scheduled(initialDelay = 45000, fixedDelay = 3600000)
     public void checkNbaTransactions() {
 
         List<FollowedTeam> followedNbaTeams = followedTeamRepository
@@ -152,32 +151,6 @@ public class NbaTransactionScheduler {
                     .getDailyTransfers(
                             date);
 
-            if (rawTransfers
-                    .toLowerCase()
-                    .contains("kawhi")
-                    ||
-                    rawTransfers
-                            .toLowerCase()
-                            .contains("leonard")) {
-
-                System.out.println(
-                        "KAWHI FOUND IN RAW NBA RESPONSE"
-                                + " | requestedDate="
-                                + date);
-            }
-            System.out.println(
-                    "NBA RAW CHECK"
-                            + " | date="
-                            + date
-                            + " | containsKawhi="
-                            + rawTransfers
-                                    .toLowerCase()
-                                    .contains("kawhi")
-                            + " | containsLeonard="
-                            + rawTransfers
-                                    .toLowerCase()
-                                    .contains("leonard"));
-
         } catch (Exception exception) {
 
             System.err.println(
@@ -229,32 +202,6 @@ public class NbaTransactionScheduler {
                         .getNormalizedTransfersForTeam(
                                 rawTransfers,
                                 providerTeamId);
-
-                System.out.println(
-                        "NBA "
-                                + date
-                                + " | "
-                                + teamName
-                                + " | normalized events: "
-                                + events.size());
-
-                for (NbaTransactionEvent event : events) {
-
-                    System.out.println(
-                            "NBA EVENT"
-                                    + " | requestedDate="
-                                    + date
-                                    + " | team="
-                                    + teamName
-                                    + " | player="
-                                    + event.playerName()
-                                    + " | type="
-                                    + event.eventType()
-                                    + " | effectiveDate="
-                                    + event.effectiveDate()
-                                    + " | description="
-                                    + event.description());
-                }
 
                 List<RosterEvent> savedEvents = rosterEventService
                         .saveNbaEvents(

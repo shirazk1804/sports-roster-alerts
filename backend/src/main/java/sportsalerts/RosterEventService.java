@@ -264,6 +264,7 @@ public class RosterEventService {
          *
          * MLB|Los Angeles Dodgers
          * NFL|Los Angeles Rams
+         * NBA|Toronto Raptors
          *
          * This prevents teams in different
          * leagues from ever colliding.
@@ -283,6 +284,7 @@ public class RosterEventService {
         List<RosterEvent> visibleEvents = new ArrayList<>();
 
         for (RosterEvent event : allEvents) {
+
             String eventKey = buildTeamKey(
                     event.getLeague(),
                     event.getTeamName());
@@ -290,48 +292,12 @@ public class RosterEventService {
             FollowedTeam followedTeam = followedTeamsByLeagueAndName
                     .get(eventKey);
 
-            if ("NBA".equals(
-                    event.getLeague())) {
-
-                System.out.println(
-                        "NBA Recent Alerts check"
-                                + " | eventKey="
-                                + eventKey
-                                + " | player="
-                                + event.getPlayerName()
-                                + " | type="
-                                + event.getEventType()
-                                + " | date="
-                                + event.getEventDate()
-                                + " | followedMatch="
-                                + (followedTeam != null));
-            }
-
             if (followedTeam == null) {
                 continue;
             }
 
-            boolean visible = shouldNotify(
-                    followedTeam,
+            visibleEvents.add(
                     event);
-
-            if ("NBA".equals(
-                    event.getLeague())) {
-
-                System.out.println(
-                        "NBA Recent Alerts preference"
-                                + " | team="
-                                + event.getTeamName()
-                                + " | player="
-                                + event.getPlayerName()
-                                + " | visible="
-                                + visible);
-            }
-
-            if (visible) {
-                visibleEvents.add(
-                        event);
-            }
         }
 
         return visibleEvents;
