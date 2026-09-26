@@ -21,27 +21,21 @@ public class NbaTransactionService {
 
     private final String apiKey;
 
-    private final SportradarRequestLimiter
-            requestLimiter;
+    private final SportradarRequestLimiter requestLimiter;
 
     public NbaTransactionService(
             ObjectMapper objectMapper,
-            @Value("${SPORTRADAR_API_KEY:}")
-            String apiKey,
+            @Value("${SPORTRADAR_API_KEY:}") String apiKey,
             SportradarRequestLimiter requestLimiter) {
 
-        this.objectMapper =
-                objectMapper;
+        this.objectMapper = objectMapper;
 
-        this.apiKey =
-                apiKey;
+        this.apiKey = apiKey;
 
-        this.requestLimiter =
-                requestLimiter;
+        this.requestLimiter = requestLimiter;
 
-        this.restClient =
-                RestClient.create(
-                        "https://api.sportradar.com");
+        this.restClient = RestClient.create(
+                "https://api.sportradar.com");
     }
 
     public String getDailyTransfers(
@@ -54,19 +48,16 @@ public class NbaTransactionService {
                     "Sportradar API key is not configured");
         }
 
-        String year =
-                String.valueOf(
-                        date.getYear());
+        String year = String.valueOf(
+                date.getYear());
 
-        String month =
-                String.format(
-                        "%02d",
-                        date.getMonthValue());
+        String month = String.format(
+                "%02d",
+                date.getMonthValue());
 
-        String day =
-                String.format(
-                        "%02d",
-                        date.getDayOfMonth());
+        String day = String.format(
+                "%02d",
+                date.getDayOfMonth());
 
         return requestLimiter.execute(
                 () -> restClient
@@ -89,23 +80,19 @@ public class NbaTransactionService {
                                 String.class));
     }
 
-    public List<NbaTransactionEvent>
-            getNormalizedTransfersForTeam(
-                    String rawJson,
-                    String externalProviderTeamId) {
+    public List<NbaTransactionEvent> getNormalizedTransfersForTeam(
+            String rawJson,
+            String externalProviderTeamId) {
 
-        List<NbaTransactionEvent> events =
-                new ArrayList<>();
+        List<NbaTransactionEvent> events = new ArrayList<>();
 
         try {
 
-            JsonNode root =
-                    objectMapper.readTree(
-                            rawJson);
+            JsonNode root = objectMapper.readTree(
+                    rawJson);
 
-            JsonNode players =
-                    root.get(
-                            "players");
+            JsonNode players = root.get(
+                    "players");
 
             if (players == null ||
                     !players.isArray()) {
@@ -113,23 +100,18 @@ public class NbaTransactionService {
                 return events;
             }
 
-            for (
-                    JsonNode player :
-                    players) {
+            for (JsonNode player : players) {
 
-                String playerId =
-                        getText(
-                                player,
-                                "id");
+                String playerId = getText(
+                        player,
+                        "id");
 
-                String playerName =
-                        getText(
-                                player,
-                                "full_name");
+                String playerName = getText(
+                        player,
+                        "full_name");
 
-                JsonNode transfers =
-                        player.get(
-                                "transfers");
+                JsonNode transfers = player.get(
+                        "transfers");
 
                 if (transfers == null ||
                         !transfers.isArray()) {
@@ -137,9 +119,19 @@ public class NbaTransactionService {
                     continue;
                 }
 
-                for (
-                        JsonNode transfer :
-                        transfers) {
+                for (JsonNode transfer : transfers) {
+
+                    if (playerName
+                            .toLowerCase()
+                            .contains("kawhi")) {
+
+                        System.out.println(
+                                "RAW KAWHI NBA TRANSFER"
+                                        + " | player="
+                                        + playerName
+                                        + " | transfer="
+                                        + transfer.toString());
+                    }
 
                     if (!belongsToTeam(
                             transfer,
@@ -148,41 +140,34 @@ public class NbaTransactionService {
                         continue;
                     }
 
-                    String transferId =
-                            getText(
-                                    transfer,
-                                    "id");
+                    String transferId = getText(
+                            transfer,
+                            "id");
 
-                    String description =
-                            getText(
-                                    transfer,
-                                    "desc");
+                    String description = getText(
+                            transfer,
+                            "desc");
 
-                    String effectiveDate =
-                            getText(
-                                    transfer,
-                                    "effective_date");
+                    String effectiveDate = getText(
+                            transfer,
+                            "effective_date");
 
-                    String transactionCode =
-                            getText(
-                                    transfer,
-                                    "transaction_code");
+                    String transactionCode = getText(
+                            transfer,
+                            "transaction_code");
 
-                    String transactionType =
-                            getText(
-                                    transfer,
-                                    "transaction_type");
+                    String transactionType = getText(
+                            transfer,
+                            "transaction_type");
 
-                    String notes =
-                            getText(
-                                    transfer,
-                                    "notes");
+                    String notes = getText(
+                            transfer,
+                            "notes");
 
-                    String eventType =
-                            normalizeEventType(
-                                    transactionCode,
-                                    transactionType,
-                                    description);
+                    String eventType = normalizeEventType(
+                            transactionCode,
+                            transactionType,
+                            description);
 
                     if (eventType == null) {
 
@@ -197,17 +182,15 @@ public class NbaTransactionService {
                         continue;
                     }
 
-                    String teamName =
-                            getTeamName(
-                                    transfer,
-                                    externalProviderTeamId);
+                    String teamName = getTeamName(
+                            transfer,
+                            externalProviderTeamId);
 
                     if (description.isBlank()) {
 
-                        description =
-                                playerName
-                                        + " - "
-                                        + transactionType;
+                        description = playerName
+                                + " - "
+                                + transactionType;
                     }
 
                     events.add(
@@ -240,9 +223,8 @@ public class NbaTransactionService {
             JsonNode transfer,
             String externalProviderTeamId) {
 
-        JsonNode fromTeam =
-                transfer.get(
-                        "from_team");
+        JsonNode fromTeam = transfer.get(
+                "from_team");
 
         if (teamMatches(
                 fromTeam,
@@ -251,9 +233,8 @@ public class NbaTransactionService {
             return true;
         }
 
-        JsonNode toTeam =
-                transfer.get(
-                        "to_team");
+        JsonNode toTeam = transfer.get(
+                "to_team");
 
         return teamMatches(
                 toTeam,
@@ -270,10 +251,9 @@ public class NbaTransactionService {
             return false;
         }
 
-        String teamId =
-                getText(
-                        team,
-                        "id");
+        String teamId = getText(
+                team,
+                "id");
 
         return externalProviderTeamId
                 .equals(
@@ -284,9 +264,8 @@ public class NbaTransactionService {
             JsonNode transfer,
             String externalProviderTeamId) {
 
-        JsonNode toTeam =
-                transfer.get(
-                        "to_team");
+        JsonNode toTeam = transfer.get(
+                "to_team");
 
         if (teamMatches(
                 toTeam,
@@ -296,9 +275,8 @@ public class NbaTransactionService {
                     toTeam);
         }
 
-        JsonNode fromTeam =
-                transfer.get(
-                        "from_team");
+        JsonNode fromTeam = transfer.get(
+                "from_team");
 
         if (teamMatches(
                 fromTeam,
@@ -314,15 +292,13 @@ public class NbaTransactionService {
     private String buildTeamName(
             JsonNode team) {
 
-        String market =
-                getText(
-                        team,
-                        "market");
+        String market = getText(
+                team,
+                "market");
 
-        String name =
-                getText(
-                        team,
-                        "name");
+        String name = getText(
+                team,
+                "name");
 
         return (market + " " + name)
                 .trim();
@@ -333,26 +309,23 @@ public class NbaTransactionService {
             String transactionType,
             String description) {
 
-        String code =
-                transactionCode == null
-                        ? ""
-                        : transactionCode
-                                .trim()
-                                .toUpperCase();
+        String code = transactionCode == null
+                ? ""
+                : transactionCode
+                        .trim()
+                        .toUpperCase();
 
-        String type =
-                transactionType == null
-                        ? ""
-                        : transactionType
-                                .trim()
-                                .toLowerCase();
+        String type = transactionType == null
+                ? ""
+                : transactionType
+                        .trim()
+                        .toLowerCase();
 
-        String desc =
-                description == null
-                        ? ""
-                        : description
-                                .trim()
-                                .toLowerCase();
+        String desc = description == null
+                ? ""
+                : description
+                        .trim()
+                        .toLowerCase();
 
         /*
          * Trades
@@ -369,9 +342,11 @@ public class NbaTransactionService {
          */
         if ("MIN".equals(code) ||
                 type.contains(
-                        "assigned to minors") ||
+                        "assigned to minors")
+                ||
                 desc.contains(
-                        "assigned to the g-league") ||
+                        "assigned to the g-league")
+                ||
                 desc.contains(
                         "assigned to the g league")) {
 
@@ -383,9 +358,11 @@ public class NbaTransactionService {
          */
         if ("REC".equals(code) ||
                 type.contains(
-                        "recalled from minors") ||
+                        "recalled from minors")
+                ||
                 desc.contains(
-                        "recalled from the g-league") ||
+                        "recalled from the g-league")
+                ||
                 desc.contains(
                         "recalled from the g league")) {
 
@@ -475,9 +452,8 @@ public class NbaTransactionService {
             return "";
         }
 
-        JsonNode value =
-                node.get(
-                        field);
+        JsonNode value = node.get(
+                field);
 
         if (value == null ||
                 value.isNull()) {
