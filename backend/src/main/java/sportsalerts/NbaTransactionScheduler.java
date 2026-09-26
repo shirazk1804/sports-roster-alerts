@@ -212,6 +212,24 @@ public class NbaTransactionScheduler {
                                 + " | normalized events: "
                                 + events.size());
 
+                for (NbaTransactionEvent event : events) {
+
+                    System.out.println(
+                            "NBA EVENT"
+                                    + " | requestedDate="
+                                    + date
+                                    + " | team="
+                                    + teamName
+                                    + " | player="
+                                    + event.playerName()
+                                    + " | type="
+                                    + event.eventType()
+                                    + " | effectiveDate="
+                                    + event.effectiveDate()
+                                    + " | description="
+                                    + event.description());
+                }
+
                 List<RosterEvent> savedEvents = rosterEventService
                         .saveNbaEvents(
                                 providerTeamId,
