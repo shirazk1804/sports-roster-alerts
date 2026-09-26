@@ -164,27 +164,24 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            <Text style={styles.alertType}>
-              {team.alertType}
-            </Text>
           </Pressable>
         ))}
 
-        <Pressable
-          onPress={followTeam}
-          style={({ pressed }) => [
-            styles.followButton,
-            pressed &&
-            styles.followButtonPressed,
-          ]}
-        >
-          <Text
-            style={styles.followButtonText}
-          >
-            + Follow Team
-          </Text>
-        </Pressable>
       </ScrollView>
+      <Pressable
+        onPress={() =>
+          router.push("/follow")
+        }
+        style={({ pressed }) => [
+          styles.followButton,
+          pressed &&
+          styles.followButtonPressed,
+        ]}
+      >
+        <Text style={styles.followButtonText}>
+          + Follow Team
+        </Text>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -198,7 +195,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 22,
     paddingTop: 40,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
 
   eyebrow: {
@@ -298,22 +295,28 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
-  alertType: {
-    marginTop: 15,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#475569",
-  },
-
   followButton: {
-    marginTop: 8,
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 20,
     backgroundColor: "#0F172A",
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 15,
+    borderRadius: 14,
     alignItems: "center",
+    justifyContent: "center",
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+
+    elevation: 6,
+
+    zIndex: 10,
   },
 
   followButtonPressed: {

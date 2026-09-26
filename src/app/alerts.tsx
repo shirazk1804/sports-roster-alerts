@@ -69,25 +69,51 @@ function formatEventDate(
 function formatEventDescription(
   event: RosterEvent
 ): string {
+  let description =
+    event.description;
+
   if (
-    event.eventType ===
+    event.eventType !==
     "INJURY_STATUS_CHANGE"
   ) {
-    const prefix =
-      `${event.playerName}: `;
-
-    if (
-      event.description.startsWith(
-        prefix
-      )
-    ) {
-      return event.description.substring(
-        prefix.length
-      );
-    }
+    return description;
   }
 
-  return event.description;
+  const prefix =
+    `${event.playerName}: `;
+
+  if (
+    description.startsWith(prefix)
+  ) {
+    description =
+      description.substring(
+        prefix.length
+      );
+  }
+
+  description = description
+    .replace(
+      /Did Not Participate In Practice/gi,
+      "Did Not Participate"
+    )
+    .replace(
+      /Limited Participation In Practice/gi,
+      "Limited Participation"
+    )
+    .replace(
+      /Full Participation In Practice/gi,
+      "Full Participation"
+    )
+    .replace(
+      /Game status:\s*None\s*→\s*/gi,
+      "Game status: "
+    )
+    .replace(
+      /;\s*/g,
+      "\n"
+    );
+
+  return description;
 }
 
 const eventLabels:
@@ -514,6 +540,7 @@ const styles =
     },
 
     headerText: {
+      marginLeft: 12,
       flex: 1,
     },
 

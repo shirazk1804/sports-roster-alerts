@@ -261,6 +261,52 @@ export default function TeamSettingsScreen() {
     );
   }
 
+  function getGameStatusBadgeStyle(
+    status: string | null
+  ) {
+    const normalized =
+      (status ?? "")
+        .trim()
+        .toLowerCase();
+
+    if (normalized === "out") {
+      return styles.gameStatusBadgeOut;
+    }
+
+    if (normalized === "doubtful") {
+      return styles.gameStatusBadgeDoubtful;
+    }
+
+    if (normalized === "questionable") {
+      return styles.gameStatusBadgeQuestionable;
+    }
+
+    return styles.gameStatusBadgeDefault;
+  }
+
+  function getGameStatusTextStyle(
+    status: string | null
+  ) {
+    const normalized =
+      (status ?? "")
+        .trim()
+        .toLowerCase();
+
+    if (normalized === "out") {
+      return styles.gameStatusBadgeTextOut;
+    }
+
+    if (normalized === "doubtful") {
+      return styles.gameStatusBadgeTextDoubtful;
+    }
+
+    if (normalized === "questionable") {
+      return styles.gameStatusBadgeTextQuestionable;
+    }
+
+    return styles.gameStatusBadgeTextDefault;
+  }
+
   function toggleSetting(
     setting: string
   ) {
@@ -531,14 +577,20 @@ export default function TeamSettingsScreen() {
                       </View>
 
                       <View
-                        style={
-                          styles.gameStatusBadge
-                        }
+                        style={[
+                          styles.gameStatusBadge,
+                          getGameStatusBadgeStyle(
+                            injury.gameStatus
+                          ),
+                        ]}
                       >
                         <Text
-                          style={
-                            styles.gameStatusBadgeText
-                          }
+                          style={[
+                            styles.gameStatusBadgeText,
+                            getGameStatusTextStyle(
+                              injury.gameStatus
+                            ),
+                          ]}
                         >
                           {(
                             injury.gameStatus ??
@@ -901,6 +953,38 @@ const styles = StyleSheet.create({
   gameStatusError: {
     fontSize: 13,
     color: "#DC2626",
+  },
+
+  gameStatusBadgeOut: {
+    backgroundColor: "#FEE2E2",
+  },
+
+  gameStatusBadgeTextOut: {
+    color: "#B91C1C",
+  },
+
+  gameStatusBadgeDoubtful: {
+    backgroundColor: "#FFEDD5",
+  },
+
+  gameStatusBadgeTextDoubtful: {
+    color: "#C2410C",
+  },
+
+  gameStatusBadgeQuestionable: {
+    backgroundColor: "#FEF3C7",
+  },
+
+  gameStatusBadgeTextQuestionable: {
+    color: "#A16207",
+  },
+
+  gameStatusBadgeDefault: {
+    backgroundColor: "#F1F5F9",
+  },
+
+  gameStatusBadgeTextDefault: {
+    color: "#334155",
   },
 
   injuriesButton: {

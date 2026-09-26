@@ -14,116 +14,93 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class PushNotificationService {
 
-    private final PushTokenRepository
-        pushTokenRepository;
+    private final PushTokenRepository pushTokenRepository;
 
-    private final PushReceiptTicketRepository
-        pushReceiptTicketRepository;
+    private final PushReceiptTicketRepository pushReceiptTicketRepository;
 
     private final RestClient restClient;
 
     private final ObjectMapper objectMapper;
 
     public PushNotificationService(
-        PushTokenRepository pushTokenRepository,
-        PushReceiptTicketRepository pushReceiptTicketRepository,
-        ObjectMapper objectMapper
-    ) {
-        this.pushTokenRepository =
-            pushTokenRepository;
+            PushTokenRepository pushTokenRepository,
+            PushReceiptTicketRepository pushReceiptTicketRepository,
+            ObjectMapper objectMapper) {
+        this.pushTokenRepository = pushTokenRepository;
 
-        this.pushReceiptTicketRepository =
-            pushReceiptTicketRepository;
+        this.pushReceiptTicketRepository = pushReceiptTicketRepository;
 
-        this.objectMapper =
-            objectMapper;
+        this.objectMapper = objectMapper;
 
-        this.restClient =
-            RestClient.create(
-                "https://exp.host"
-            );
+        this.restClient = RestClient.create(
+                "https://exp.host");
     }
 
     public int sendRosterEventNotification(
-        Long appUserId,
-        RosterEvent event
-    ) {
-        List<PushToken> pushTokens =
-            pushTokenRepository.findByAppUserId(
-                appUserId
-            );
+            Long appUserId,
+            RosterEvent event) {
+        List<PushToken> pushTokens = pushTokenRepository.findByAppUserId(
+                appUserId);
 
         int notificationsSent = 0;
 
         for (PushToken pushToken : pushTokens) {
 
+            String notificationBody = formatNotificationBody(
+                    event);
+
             try {
-                Map<String, Object> data =
-                    new HashMap<>();
+                Map<String, Object> data = new HashMap<>();
 
                 data.put(
-                    "rosterEventId",
-                    event.getId()
-                );
+                        "rosterEventId",
+                        event.getId());
 
                 data.put(
-                    "teamName",
-                    event.getTeamName()
-                );
+                        "teamName",
+                        event.getTeamName());
 
                 data.put(
-                    "eventType",
-                    event.getEventType()
-                );
+                        "eventType",
+                        event.getEventType());
 
-                Map<String, Object> message =
-                    new HashMap<>();
+                Map<String, Object> message = new HashMap<>();
 
                 message.put(
-                    "to",
-                    pushToken.getExpoPushToken()
-                );
+                        "to",
+                        pushToken.getExpoPushToken());
 
                 message.put(
-                    "sound",
-                    "default"
-                );
+                        "sound",
+                        "default");
 
                 message.put(
-                    "title",
-                    event.getTeamName()
-                        + ": "
-                        + event.getPlayerName()
-                );
+                        "title",
+                        event.getTeamName()
+                                + ": "
+                                + event.getPlayerName());
 
                 message.put(
-                    "body",
-                    event.getDescription()
-                );
+                        "body",
+                        notificationBody);
 
                 message.put(
-                    "data",
-                    data
-                );
+                        "data",
+                        data);
 
-                String response =
-                    restClient
+                String response = restClient
                         .post()
                         .uri(
-                            "/--/api/v2/push/send"
-                        )
+                                "/--/api/v2/push/send")
                         .contentType(
-                            MediaType.APPLICATION_JSON
-                        )
+                                MediaType.APPLICATION_JSON)
                         .body(message)
                         .retrieve()
                         .body(String.class);
 
-                boolean accepted =
-                    handlePushTicket(
+                boolean accepted = handlePushTicket(
                         response,
-                        pushToken
-                    );
+                        pushToken);
 
                 if (accepted) {
                     notificationsSent++;
@@ -132,9 +109,8 @@ public class PushNotificationService {
             } catch (Exception exception) {
 
                 System.err.println(
-                    "Could not send push notification: "
-                    + exception.getMessage()
-                );
+                        "Could not send push notification: "
+                                + exception.getMessage());
             }
         }
 
@@ -142,21 +118,17 @@ public class PushNotificationService {
     }
 
     private boolean handlePushTicket(
-        String response,
-        PushToken pushToken
-    ) throws Exception {
+            String response,
+            PushToken pushToken) throws Exception {
 
-        JsonNode root =
-            objectMapper.readTree(response);
+        JsonNode root = objectMapper.readTree(response);
 
-        JsonNode data =
-            root.get("data");
+        JsonNode data = root.get("data");
 
         if (data == null) {
 
             System.err.println(
-                "Expo push response did not contain a ticket."
-            );
+                    "Expo push response did not contain a ticket.");
 
             return false;
         }
@@ -169,41 +141,32 @@ public class PushNotificationService {
                 return false;
             }
 
-            ticket =
-                data.get(0);
+            ticket = data.get(0);
 
         } else {
-            ticket =
-                data;
+            ticket = data;
         }
 
-        String status =
-            getText(
+        String status = getText(
                 ticket,
-                "status"
-            );
+                "status");
 
         if ("ok".equals(status)) {
 
-            String receiptId =
-                getText(
+            String receiptId = getText(
                     ticket,
-                    "id"
-                );
+                    "id");
 
             if (!receiptId.isBlank()) {
 
                 pushReceiptTicketRepository.save(
-                    new PushReceiptTicket(
-                        receiptId,
-                        pushToken.getExpoPushToken()
-                    )
-                );
+                        new PushReceiptTicket(
+                                receiptId,
+                                pushToken.getExpoPushToken()));
 
                 System.out.println(
-                    "Expo push accepted. "
-                    + "Receipt saved for later check."
-                );
+                        "Expo push accepted. "
+                                + "Receipt saved for later check.");
             }
 
             return true;
@@ -211,62 +174,73 @@ public class PushNotificationService {
 
         if ("error".equals(status)) {
 
-            String error =
-                getNestedError(ticket);
+            String error = getNestedError(ticket);
 
             System.err.println(
-                "Expo push ticket error: "
-                + error
-            );
+                    "Expo push ticket error: "
+                            + error);
 
-            if (
-                "DeviceNotRegistered"
-                    .equals(error)
-            ) {
+            if ("DeviceNotRegistered"
+                    .equals(error)) {
                 pushTokenRepository.delete(
-                    pushToken
-                );
+                        pushToken);
 
                 System.out.println(
-                    "Removed invalid push token."
-                );
+                        "Removed invalid push token.");
             }
         }
 
         return false;
     }
 
+    private String formatNotificationBody(
+            RosterEvent event) {
+        String description = event.getDescription();
+
+        if ("INJURY_STATUS_CHANGE".equals(
+                event.getEventType())) {
+            String playerName = event.getPlayerName();
+
+            if (playerName != null &&
+                    !playerName.isBlank() &&
+                    description != null) {
+                String prefix = playerName + ": ";
+
+                if (description.startsWith(
+                        prefix)) {
+                    return description.substring(
+                            prefix.length());
+                }
+            }
+        }
+
+        return description;
+    }
+
     private String getNestedError(
-        JsonNode node
-    ) {
-        JsonNode details =
-            node.get("details");
+            JsonNode node) {
+        JsonNode details = node.get("details");
 
         if (details == null) {
             return "";
         }
 
         return getText(
-            details,
-            "error"
-        );
+                details,
+                "error");
     }
 
     private String getText(
-        JsonNode node,
-        String field
-    ) {
+            JsonNode node,
+            String field) {
         if (node == null) {
             return "";
         }
 
-        JsonNode value =
-            node.get(field);
+        JsonNode value = node.get(field);
 
-        if (
-            value == null ||
-            value.isNull()
-        ) {
+        if (value == null ||
+                value.isNull()) {
             return "";
         }
 
