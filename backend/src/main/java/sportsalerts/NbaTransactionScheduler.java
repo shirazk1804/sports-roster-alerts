@@ -14,7 +14,8 @@ public class NbaTransactionScheduler {
 
     private record ProcessingResult(
             int newEvents,
-            int notifications) {
+            int notifications,
+            boolean successful) {
     }
 
     private final FollowedTeamRepository followedTeamRepository;
@@ -89,6 +90,8 @@ public class NbaTransactionScheduler {
          */
         if (!initialBackfillComplete) {
 
+            boolean backfillSuccessful = true;
+
             for (int daysAgo = 6; daysAgo >= 1; daysAgo--) {
 
                 LocalDate date = today.minusDays(
@@ -102,9 +105,13 @@ public class NbaTransactionScheduler {
                 totalNewEvents += result.newEvents();
 
                 totalNotifications += result.notifications();
+
+                if (!result.successful()) {
+                    backfillSuccessful = false;
+                }
             }
 
-            initialBackfillComplete = true;
+            initialBackfillComplete = backfillSuccessful;
         }
 
         /*
@@ -155,11 +162,14 @@ public class NbaTransactionScheduler {
 
             return new ProcessingResult(
                     0,
-                    0);
+                    0,
+                    false);
         }
 
         int totalNewEvents = 0;
         int totalNotifications = 0;
+
+        boolean successful = true;
 
         for (Map.Entry<String, List<FollowedTeam>> entry : followersByTeam.entrySet()) {
 
@@ -193,6 +203,14 @@ public class NbaTransactionScheduler {
                         .getNormalizedTransfersForTeam(
                                 rawTransfers,
                                 providerTeamId);
+
+                System.out.println(
+                        "NBA "
+                                + date
+                                + " | "
+                                + teamName
+                                + " | normalized events: "
+                                + events.size());
 
                 List<RosterEvent> savedEvents = rosterEventService
                         .saveNbaEvents(
@@ -243,6 +261,8 @@ public class NbaTransactionScheduler {
 
             } catch (Exception exception) {
 
+                successful = false;
+
                 System.err.println(
                         "NBA processing failed for "
                                 + teamName
@@ -255,6 +275,7 @@ public class NbaTransactionScheduler {
 
         return new ProcessingResult(
                 totalNewEvents,
-                totalNotifications);
+                totalNotifications,
+                successful);
     }
 }
