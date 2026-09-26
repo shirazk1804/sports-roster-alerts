@@ -152,6 +152,32 @@ public class NbaTransactionScheduler {
                     .getDailyTransfers(
                             date);
 
+            if (rawTransfers
+                    .toLowerCase()
+                    .contains("kawhi")
+                    ||
+                    rawTransfers
+                            .toLowerCase()
+                            .contains("leonard")) {
+
+                System.out.println(
+                        "KAWHI FOUND IN RAW NBA RESPONSE"
+                                + " | requestedDate="
+                                + date);
+            }
+            System.out.println(
+                    "NBA RAW CHECK"
+                            + " | date="
+                            + date
+                            + " | containsKawhi="
+                            + rawTransfers
+                                    .toLowerCase()
+                                    .contains("kawhi")
+                            + " | containsLeonard="
+                            + rawTransfers
+                                    .toLowerCase()
+                                    .contains("leonard"));
+
         } catch (Exception exception) {
 
             System.err.println(
