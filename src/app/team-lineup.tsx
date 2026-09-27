@@ -31,7 +31,7 @@ function MlbPlayerHeadshot({
     name,
 }: {
     playerId: number | null;
-    name: string;
+    name?: string | null;
 }) {
     const [failed, setFailed] =
         useState(false);
@@ -41,7 +41,7 @@ function MlbPlayerHeadshot({
     }, [playerId]);
 
     const initials =
-        name
+        (name ?? "")
             .split(" ")
             .filter(Boolean)
             .map(part => part[0])
@@ -414,7 +414,7 @@ export default function TeamLineupScreen() {
                                         <View
                                             key={
                                                 player.playerId ??
-                                                `${player.playerName}-${player.battingOrder}`
+                                                `${player.fullName}-${player.battingOrder}`
                                             }
                                             style={
                                                 styles.playerRow
@@ -438,7 +438,7 @@ export default function TeamLineupScreen() {
 
                                             <MlbPlayerHeadshot
                                                 playerId={player.playerId}
-                                                name={player.playerName}
+                                                name={player.fullName}
                                             />
 
                                             <Text
@@ -447,7 +447,7 @@ export default function TeamLineupScreen() {
                                                 }
                                             >
                                                 {
-                                                    player.playerName
+                                                    player.fullName
                                                 }
                                             </Text>
 
@@ -500,7 +500,7 @@ export default function TeamLineupScreen() {
                                             lineup.startingPitcher.playerId
                                         }
                                         name={
-                                            lineup.startingPitcher.playerName
+                                            lineup.startingPitcher.fullName
                                         }
                                     />
                                     <Text
@@ -511,7 +511,7 @@ export default function TeamLineupScreen() {
                                         {
                                             lineup
                                                 .startingPitcher
-                                                .playerName
+                                                .fullName
                                         }
                                     </Text>
 

@@ -151,7 +151,7 @@ export type CurrentInjury = {
 
 export type MlbLineupPlayer = {
   playerId: number | null;
-  playerName: string;
+  fullName: string;
   position: string | null;
   battingOrder: number | null;
 };
