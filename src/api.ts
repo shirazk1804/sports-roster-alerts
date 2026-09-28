@@ -74,6 +74,8 @@ export type NbaCurrentInjury = {
   comment: string | null;
   startDate: string | null;
   updateDate: string | null;
+  headshotUrl: string | null;
+  fallbackHeadshotUrl: string | null;
   updatedAt: string;
 };
 

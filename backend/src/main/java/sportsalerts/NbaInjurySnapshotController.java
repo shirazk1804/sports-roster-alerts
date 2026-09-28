@@ -14,165 +14,133 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/followed-teams")
 public class NbaInjurySnapshotController {
 
-    private final FollowedTeamRepository
-        followedTeamRepository;
+    private final FollowedTeamRepository followedTeamRepository;
 
-    private final TeamRepository
-        teamRepository;
+    private final TeamRepository teamRepository;
 
-    private final NbaInjurySnapshotRepository
-        snapshotRepository;
+    private final NbaInjurySnapshotRepository snapshotRepository;
 
-    private final AppUserService
-        appUserService;
+    private final NbaPlayerImageService nbaPlayerImageService;
+
+    private final AppUserService appUserService;
 
     public NbaInjurySnapshotController(
-        FollowedTeamRepository followedTeamRepository,
-        TeamRepository teamRepository,
-        NbaInjurySnapshotRepository snapshotRepository,
-        AppUserService appUserService
-    ) {
-        this.followedTeamRepository =
-            followedTeamRepository;
+            FollowedTeamRepository followedTeamRepository,
+            TeamRepository teamRepository,
+            NbaInjurySnapshotRepository snapshotRepository,
+            NbaPlayerImageService nbaPlayerImageService,
+            AppUserService appUserService) {
+        this.followedTeamRepository = followedTeamRepository;
 
-        this.teamRepository =
-            teamRepository;
+        this.teamRepository = teamRepository;
 
-        this.snapshotRepository =
-            snapshotRepository;
+        this.snapshotRepository = snapshotRepository;
 
-        this.appUserService =
-            appUserService;
+        this.nbaPlayerImageService = nbaPlayerImageService;
+
+        this.appUserService = appUserService;
     }
 
     @GetMapping("/{followedTeamId}/nba-injuries")
-    public List<NbaInjurySnapshotResponse>
-        getCurrentInjuries(
+    public List<NbaInjurySnapshotResponse> getCurrentInjuries(
 
-        @PathVariable
-        Long followedTeamId,
+            @PathVariable Long followedTeamId,
 
-        @RequestHeader(
-            value = "Authorization",
-            required = false
-        )
-        String authorizationHeader
-    ) {
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
 
-        AppUser user =
-            appUserService
+        AppUser user = appUserService
                 .requireAuthenticatedUser(
-                    authorizationHeader
-                );
+                        authorizationHeader);
 
-        FollowedTeam followedTeam =
-            followedTeamRepository
+        FollowedTeam followedTeam = followedTeamRepository
                 .findById(
-                    followedTeamId
-                )
+                        followedTeamId)
                 .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND
-                        )
-                );
+                        () -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND));
 
         /*
          * Never expose another user's
          * followed-team information.
          */
-        if (
-            followedTeam.getAppUser() == null ||
-            !followedTeam
-                .getAppUser()
-                .getId()
-                .equals(
-                    user.getId()
-                )
-        ) {
+        if (followedTeam.getAppUser() == null ||
+                !followedTeam
+                        .getAppUser()
+                        .getId()
+                        .equals(
+                                user.getId())) {
 
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND
-            );
+                    HttpStatus.NOT_FOUND);
         }
 
-        if (
-            !"NBA".equals(
-                followedTeam.getLeague()
-            )
-        ) {
+        if (!"NBA".equals(
+                followedTeam.getLeague())) {
 
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "NBA injury reports are only available for NBA teams"
-            );
+                    HttpStatus.BAD_REQUEST,
+                    "NBA injury reports are only available for NBA teams");
         }
 
-        Team team =
-            teamRepository
+        Team team = teamRepository
                 .findByLeagueAndName(
-                    "NBA",
-                    followedTeam.getName()
-                )
+                        "NBA",
+                        followedTeam.getName())
                 .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "NBA team not found"
-                        )
-                );
+                        () -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "NBA team not found"));
 
-        String providerTeamId =
-            team.getExternalProviderId();
+        String providerTeamId = team.getExternalProviderId();
 
-        if (
-            providerTeamId == null ||
-            providerTeamId.isBlank()
-        ) {
+        if (providerTeamId == null ||
+                providerTeamId.isBlank()) {
 
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "NBA provider team ID not found"
-            );
+                    HttpStatus.NOT_FOUND,
+                    "NBA provider team ID not found");
         }
 
         return snapshotRepository
-            .findByExternalProviderTeamIdOrderByPlayerNameAsc(
-                providerTeamId
-            )
-            .stream()
-            .map(
-                snapshot ->
-                    new NbaInjurySnapshotResponse(
+                .findByExternalProviderTeamIdOrderByPlayerNameAsc(
+                        providerTeamId)
+                .stream()
+                .map(
+                        snapshot -> new NbaInjurySnapshotResponse(
 
-                        snapshot
-                            .getPlayerName(),
+                                snapshot
+                                        .getPlayerName(),
 
-                        snapshot
-                            .getPlayerProviderId(),
+                                snapshot
+                                        .getPlayerProviderId(),
 
-                        snapshot
-                            .getPosition(),
+                                snapshot
+                                        .getPosition(),
 
-                        snapshot
-                            .getInjury(),
+                                snapshot
+                                        .getInjury(),
 
-                        snapshot
-                            .getStatus(),
+                                snapshot
+                                        .getStatus(),
 
-                        snapshot
-                            .getComment(),
+                                snapshot
+                                        .getComment(),
 
-                        snapshot
-                            .getStartDate(),
+                                snapshot
+                                        .getStartDate(),
 
-                        snapshot
-                            .getProviderUpdateDate(),
+                                snapshot
+                                        .getProviderUpdateDate(),
 
-                        snapshot
-                            .getUpdatedAt()
-                    )
-            )
-            .toList();
+                                nbaPlayerImageService
+                                        .getHeadshotUrl(
+                                                followedTeam.getName(),
+                                                snapshot.getPlayerName()),
+
+                                null,
+
+                                snapshot
+                                        .getUpdatedAt()))
+                .toList();
     }
 }

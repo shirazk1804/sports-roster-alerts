@@ -143,10 +143,10 @@ export default function TeamInjuriesScreen() {
                     );
 
                 /*
-                 * Normalize NBA injuries into the
-                 * same shape the existing injury
-                 * screen already understands.
-                 */
+                * Normalize NBA injuries into the
+                * same shape the existing injury
+                * screen already understands.
+                */
                 const normalizedInjuries:
                     CurrentInjury[] =
                     nbaInjuries.map(
@@ -157,9 +157,11 @@ export default function TeamInjuriesScreen() {
                             playerProviderId:
                                 injury.playerProviderId,
 
-                            headshotUrl: null,
+                            headshotUrl:
+                                injury.headshotUrl,
 
-                            fallbackHeadshotUrl: null,
+                            fallbackHeadshotUrl:
+                                injury.fallbackHeadshotUrl,
 
                             position:
                                 injury.position,

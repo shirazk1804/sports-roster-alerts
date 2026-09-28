@@ -20,6 +20,10 @@ public record NbaInjurySnapshotResponse(
 
     String updateDate,
 
+    String headshotUrl,
+
+    String fallbackHeadshotUrl,
+
     LocalDateTime updatedAt
 
 ) {
