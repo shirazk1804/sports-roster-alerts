@@ -47,6 +47,11 @@ public class NbaInjurySnapshot {
     private String playerProviderId;
 
     @Column(
+            name = "nba_player_id",
+            length = 50)
+    private String nbaPlayerId;
+
+    @Column(
             name = "player_name",
             nullable = false)
     private String playerName;
@@ -100,6 +105,7 @@ public class NbaInjurySnapshot {
             String externalProviderTeamId,
             String teamName,
             String playerProviderId,
+            String nbaPlayerId,
             String playerName,
             String position,
             String injuryProviderId,
@@ -119,8 +125,14 @@ public class NbaInjurySnapshot {
         this.playerProviderId =
                 playerProviderId;
 
+        this.nbaPlayerId =
+                nbaPlayerId;
+
         this.playerName =
                 playerName;
+
+        this.nbaPlayerId =
+                nbaPlayerId;
 
         this.position =
                 position;
@@ -167,6 +179,10 @@ public class NbaInjurySnapshot {
         return playerProviderId;
     }
 
+    public String getNbaPlayerId() {
+        return nbaPlayerId;
+    }
+
     public String getPlayerName() {
         return playerName;
     }
@@ -210,6 +226,7 @@ public class NbaInjurySnapshot {
     public void update(
             String teamName,
             String playerName,
+            String nbaPlayerId,
             String position,
             String injury,
             String status,

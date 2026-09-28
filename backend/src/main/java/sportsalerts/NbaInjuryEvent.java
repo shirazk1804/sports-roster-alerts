@@ -4,6 +4,7 @@ public record NbaInjuryEvent(
         String externalProviderTeamId,
         String teamName,
         String playerProviderId,
+        String nbaPlayerId,
         String playerName,
         String position,
         String injuryProviderId,
