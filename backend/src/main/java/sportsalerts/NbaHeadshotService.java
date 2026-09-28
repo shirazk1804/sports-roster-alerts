@@ -20,8 +20,7 @@ public class NbaHeadshotService {
 
     private static final long CACHE_HOURS = 24;
 
-    private static final Map<String, String>
-            TEAM_SLUGS = Map.ofEntries(
+    private static final Map<String, String> TEAM_SLUGS = Map.ofEntries(
 
             Map.entry(
                     "Atlanta Hawks",
@@ -141,27 +140,21 @@ public class NbaHeadshotService {
 
             Map.entry(
                     "Washington Wizards",
-                    "wizards")
-    );
+                    "wizards"));
 
-    private final NbaPlayerHeadshotRepository
-            headshotRepository;
+    private final NbaPlayerHeadshotRepository headshotRepository;
 
     /*
      * Avoid downloading the same team page
      * repeatedly while multiple injured players
      * from that team are being resolved.
      */
-    private final Map<String, CachedTeamPage>
-            teamPageCache =
-            new ConcurrentHashMap<>();
+    private final Map<String, CachedTeamPage> teamPageCache = new ConcurrentHashMap<>();
 
     public NbaHeadshotService(
-            NbaPlayerHeadshotRepository
-                    headshotRepository) {
+            NbaPlayerHeadshotRepository headshotRepository) {
 
-        this.headshotRepository =
-                headshotRepository;
+        this.headshotRepository = headshotRepository;
     }
 
     public String getHeadshotUrl(
@@ -179,12 +172,11 @@ public class NbaHeadshotService {
          * Use a recently resolved official
          * team image when available.
          */
-        NbaPlayerHeadshot cached =
-                headshotRepository
-                        .findByNbaPlayerIdAndTeamName(
-                                nbaPlayerId,
-                                teamName)
-                        .orElse(null);
+        NbaPlayerHeadshot cached = headshotRepository
+                .findByNbaPlayerIdAndTeamName(
+                        nbaPlayerId,
+                        teamName)
+                .orElse(null);
 
         if (cached != null &&
                 cached.getUpdatedAt() != null &&
@@ -202,11 +194,10 @@ public class NbaHeadshotService {
          * Try the current team's official
          * NBA roster page.
          */
-        String currentTeamHeadshot =
-                resolveCurrentTeamHeadshot(
-                        teamName,
-                        nbaPlayerId,
-                        playerName);
+        String currentTeamHeadshot = resolveCurrentTeamHeadshot(
+                teamName,
+                nbaPlayerId,
+                playerName);
 
         if (currentTeamHeadshot != null &&
                 !currentTeamHeadshot.isBlank()) {
@@ -237,9 +228,8 @@ public class NbaHeadshotService {
             String nbaPlayerId,
             String playerName) {
 
-        String slug =
-                TEAM_SLUGS.get(
-                        teamName);
+        String slug = TEAM_SLUGS.get(
+                teamName);
 
         if (slug == null) {
             return null;
@@ -247,10 +237,9 @@ public class NbaHeadshotService {
 
         try {
 
-            Document document =
-                    getTeamRosterPage(
-                            teamName,
-                            slug);
+            Document document = getTeamRosterPage(
+                    teamName,
+                    slug);
 
             if (document == null) {
                 return null;
@@ -266,14 +255,11 @@ public class NbaHeadshotService {
              *
              * NBA ID gives us an exact match.
              */
-            for (
-                    Element link :
-                    document.select(
-                            "a[href]")) {
+            for (Element link : document.select(
+                    "a[href]")) {
 
-                String href =
-                        link.attr(
-                                "href");
+                String href = link.attr(
+                        "href");
 
                 if (!href.contains(
                         "/player/"
@@ -282,9 +268,8 @@ public class NbaHeadshotService {
                     continue;
                 }
 
-                String imageUrl =
-                        findImageNearElement(
-                                link);
+                String imageUrl = findImageNearElement(
+                        link);
 
                 if (isUsableImage(
                         imageUrl)) {
@@ -296,55 +281,50 @@ public class NbaHeadshotService {
             /*
              * Strategy 2:
              *
-             * Team-specific sites such as the
-             * Sixers may not put the NBA player
-             * ID in their player URL.
+             * Find the exact player-name element
+             * first, then search upward only far
+             * enough to find the image belonging
+             * to that player's roster card.
              *
-             * Match the player's displayed name
-             * to the surrounding roster card.
+             * This prevents an image from one
+             * player being matched to the entire
+             * roster container.
              */
-            String normalizedPlayerName =
-                    normalize(
-                            playerName);
+            String normalizedPlayerName = normalize(
+                    playerName);
 
-            for (
-                    Element image :
-                    document.select(
-                            "img")) {
+            for (Element element : document.getAllElements()) {
 
-                String imageUrl =
-                        getImageUrl(
-                                image);
+                String ownText = normalize(
+                        element.ownText());
 
-                if (!isUsableImage(
-                        imageUrl)) {
+                if (!ownText.equals(
+                        normalizedPlayerName)) {
 
                     continue;
                 }
 
-                Element container =
-                        image;
+                Element container = element;
 
-                for (
-                        int level = 0;
-                        level < 7 &&
-                                container != null;
-                        level++) {
+                for (int level = 0; level < 5 &&
+                        container != null; level++) {
 
-                    String containerText =
-                            normalize(
-                                    container.text());
+                    Element image = container.selectFirst(
+                            "img.player-image, img");
 
-                    if (!normalizedPlayerName
-                            .isBlank() &&
-                            containerText.contains(
-                                    normalizedPlayerName)) {
+                    if (image != null) {
 
-                        return imageUrl;
+                        String imageUrl = getImageUrl(
+                                image);
+
+                        if (isUsableImage(
+                                imageUrl)) {
+
+                            return imageUrl;
+                        }
                     }
 
-                    container =
-                            container.parent();
+                    container = container.parent();
                 }
             }
 
@@ -366,13 +346,11 @@ public class NbaHeadshotService {
             String teamName,
             String slug) {
 
-        CachedTeamPage cached =
-                teamPageCache.get(
-                        teamName);
+        CachedTeamPage cached = teamPageCache.get(
+                teamName);
 
-        LocalDateTime now =
-                LocalDateTime.now(
-                        ZoneOffset.UTC);
+        LocalDateTime now = LocalDateTime.now(
+                ZoneOffset.UTC);
 
         if (cached != null &&
                 cached.fetchedAt()
@@ -385,23 +363,21 @@ public class NbaHeadshotService {
 
         try {
 
-            String url =
-                    "https://www.nba.com/"
-                            + slug
-                            + "/roster";
+            String url = "https://www.nba.com/"
+                    + slug
+                    + "/roster";
 
-            Document document =
-                    Jsoup.connect(
-                            url)
-                            .userAgent(
-                                    "Mozilla/5.0")
-                            .referrer(
-                                    "https://www.nba.com/")
-                            .timeout(
-                                    10000)
-                            .followRedirects(
-                                    true)
-                            .get();
+            Document document = Jsoup.connect(
+                    url)
+                    .userAgent(
+                            "Mozilla/5.0")
+                    .referrer(
+                            "https://www.nba.com/")
+                    .timeout(
+                            10000)
+                    .followRedirects(
+                            true)
+                    .get();
 
             teamPageCache.put(
                     teamName,
@@ -426,24 +402,18 @@ public class NbaHeadshotService {
     private String findImageNearElement(
             Element element) {
 
-        Element current =
-                element;
+        Element current = element;
 
-        for (
-                int level = 0;
-                level < 7 &&
-                        current != null;
-                level++) {
+        for (int level = 0; level < 7 &&
+                current != null; level++) {
 
-            Element image =
-                    current.selectFirst(
-                            "img");
+            Element image = current.selectFirst(
+                    "img");
 
             if (image != null) {
 
-                String imageUrl =
-                        getImageUrl(
-                                image);
+                String imageUrl = getImageUrl(
+                        image);
 
                 if (isUsableImage(
                         imageUrl)) {
@@ -452,8 +422,7 @@ public class NbaHeadshotService {
                 }
             }
 
-            current =
-                    current.parent();
+            current = current.parent();
         }
 
         return null;
@@ -462,17 +431,15 @@ public class NbaHeadshotService {
     private String getImageUrl(
             Element image) {
 
-        String src =
-                image.attr(
-                        "src");
+        String src = image.attr(
+                "src");
 
         if (!src.isBlank()) {
             return src;
         }
 
-        src =
-                image.attr(
-                        "data-src");
+        src = image.attr(
+                "data-src");
 
         if (!src.isBlank()) {
             return src;
@@ -491,19 +458,16 @@ public class NbaHeadshotService {
             return false;
         }
 
-        String normalized =
-                imageUrl.toLowerCase();
+        String normalized = imageUrl.toLowerCase();
 
         return normalized.startsWith(
                 "https://")
                 &&
-                (
-                    normalized.contains(
-                            "cdn.nba.com")
-                    ||
-                    normalized.contains(
-                            "nba.com")
-                );
+                (normalized.contains(
+                        "cdn.nba.com")
+                        ||
+                        normalized.contains(
+                                "nba.com"));
     }
 
     private void saveHeadshot(
