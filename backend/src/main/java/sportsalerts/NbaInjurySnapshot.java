@@ -131,9 +131,6 @@ public class NbaInjurySnapshot {
         this.playerName =
                 playerName;
 
-        this.nbaPlayerId =
-                nbaPlayerId;
-
         this.position =
                 position;
 
@@ -240,6 +237,9 @@ public class NbaInjurySnapshot {
 
         this.playerName =
                 playerName;
+
+        this.nbaPlayerId =
+                nbaPlayerId;
 
         this.position =
                 position;

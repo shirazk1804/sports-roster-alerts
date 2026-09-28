@@ -123,12 +123,6 @@ public class NbaInjuryService {
                                                         player,
                                                         "full_name");
 
-                                        System.out.println(
-                                                        "NBA PLAYER REFERENCE: "
-                                                                        + playerName
-                                                                        + " -> "
-                                                                        + nbaPlayerId);
-
                                         /*
                                          * Prefer NBA-style primary
                                          * positions such as PG, SG,
