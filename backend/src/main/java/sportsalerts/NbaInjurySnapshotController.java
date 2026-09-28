@@ -22,16 +22,21 @@ public class NbaInjurySnapshotController {
 
     private final AppUserService appUserService;
 
+    private final NbaHeadshotService nbaHeadshotService;
+
     public NbaInjurySnapshotController(
             FollowedTeamRepository followedTeamRepository,
             TeamRepository teamRepository,
             NbaInjurySnapshotRepository snapshotRepository,
+            NbaHeadshotService nbaHeadshotService,
             AppUserService appUserService) {
         this.followedTeamRepository = followedTeamRepository;
 
         this.teamRepository = teamRepository;
 
         this.snapshotRepository = snapshotRepository;
+
+        this.nbaHeadshotService = nbaHeadshotService;
 
         this.appUserService = appUserService;
     }
@@ -127,26 +132,15 @@ public class NbaInjurySnapshotController {
                                 snapshot
                                         .getProviderUpdateDate(),
 
-                                buildNbaHeadshotUrl(
-                                        snapshot.getNbaPlayerId()),
+                                nbaHeadshotService.getHeadshotUrl(
+                                        followedTeam.getName(),
+                                        snapshot.getNbaPlayerId(),
+                                        snapshot.getPlayerName()),
 
                                 null,
 
                                 snapshot
                                         .getUpdatedAt()))
                 .toList();
-    }
-
-    private String buildNbaHeadshotUrl(
-            String nbaPlayerId) {
-
-        if (nbaPlayerId == null ||
-                nbaPlayerId.isBlank()) {
-            return null;
-        }
-
-        return "https://cdn.nba.com/headshots/nba/latest/260x190/"
-                + nbaPlayerId
-                + ".png";
     }
 }
