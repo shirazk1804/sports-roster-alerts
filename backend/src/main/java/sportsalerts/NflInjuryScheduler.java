@@ -49,7 +49,7 @@ public class NflInjuryScheduler {
                 this.pushNotificationService = pushNotificationService;
         }
 
-        @Scheduled(initialDelay = 30000, fixedDelay = 3600000)
+        @Scheduled(initialDelay = 30000, fixedDelay = 86400000)
         public void checkNflInjuries() {
 
                 List<FollowedTeam> followedNflTeams = followedTeamRepository
