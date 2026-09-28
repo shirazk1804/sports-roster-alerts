@@ -169,8 +169,11 @@ public class NbaHeadshotService {
         }
 
         /*
-         * Use a recently resolved official
-         * team image when available.
+         * Never make a live NBA.com request while
+         * the user is waiting for an API response.
+         *
+         * If we already have a current team-specific
+         * image cached, use it immediately.
          */
         NbaPlayerHeadshot cached = headshotRepository
                 .findByNbaPlayerIdAndTeamName(
@@ -179,48 +182,75 @@ public class NbaHeadshotService {
                 .orElse(null);
 
         if (cached != null &&
-                cached.getUpdatedAt() != null &&
-                cached.getUpdatedAt()
+                cached.getHeadshotUrl() != null &&
+                !cached.getHeadshotUrl().isBlank()) {
+
+            return cached.getHeadshotUrl();
+        }
+
+        /*
+         * No team-specific image has been cached yet.
+         *
+         * Return the generic NBA image immediately.
+         * A background refresh will replace it with
+         * the newer team image later.
+         */
+        return buildGenericHeadshotUrl(
+                nbaPlayerId);
+    }
+
+    public void refreshHeadshot(
+            String teamName,
+            String nbaPlayerId,
+            String playerName) {
+
+        if (nbaPlayerId == null ||
+                nbaPlayerId.isBlank() ||
+                playerName == null ||
+                playerName.isBlank()) {
+
+            return;
+        }
+
+        NbaPlayerHeadshot existing = headshotRepository
+                .findByNbaPlayerIdAndTeamName(
+                        nbaPlayerId,
+                        teamName)
+                .orElse(null);
+
+        /*
+         * Don't repeatedly scrape NBA.com for a
+         * headshot we refreshed recently.
+         */
+        if (existing != null &&
+                existing.getUpdatedAt() != null &&
+                existing.getUpdatedAt()
                         .isAfter(
                                 LocalDateTime.now(
                                         ZoneOffset.UTC)
                                         .minusHours(
                                                 CACHE_HOURS))) {
 
-            return cached.getHeadshotUrl();
+            return;
         }
 
-        /*
-         * Try the current team's official
-         * NBA roster page.
-         */
         String currentTeamHeadshot = resolveCurrentTeamHeadshot(
                 teamName,
                 nbaPlayerId,
                 playerName);
 
-        if (currentTeamHeadshot != null &&
-                !currentTeamHeadshot.isBlank()) {
+        if (currentTeamHeadshot == null ||
+                currentTeamHeadshot.isBlank()) {
 
-            saveHeadshot(
-                    cached,
-                    nbaPlayerId,
-                    playerName,
-                    teamName,
-                    currentTeamHeadshot);
-
-            return currentTeamHeadshot;
+            return;
         }
 
-        /*
-         * Reliable fallback.
-         *
-         * This image may occasionally lag behind
-         * a recent trade/signing, but is preferable
-         * to displaying no photo at all.
-         */
-        return buildGenericHeadshotUrl(
-                nbaPlayerId);
+        saveHeadshot(
+                existing,
+                nbaPlayerId,
+                playerName,
+                teamName,
+                currentTeamHeadshot);
     }
 
     private String resolveCurrentTeamHeadshot(
